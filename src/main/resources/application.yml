@@ -1,11 +1,13 @@
 spring:
   datasource:
-    url: jdbc:postgresql://ep-crimson-breeze-ab2w7r5s.eu-west-2.aws.neon.tech/neondb?sslmode=require
-    username: neondb_owner
-    password: npg_5DBREbW6XwrI
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
 
   jpa:
     hibernate:
       ddl-auto: update
-
     show-sql: true
+
+server:
+  port: ${PORT:8080}
