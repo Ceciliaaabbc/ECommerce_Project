@@ -22,7 +22,7 @@
     }
 
     const response = await fetch(
-        "http://localhost:8080/api/orders?userEmail=" + userEmail
+        "/api/orders?userEmail=" + userEmail
     );
 
     const orders = await response.json();
@@ -53,7 +53,7 @@
         }
 
         async function loadOrderItems(orderId) {
-            const response = await fetch("http://localhost:8080/api/orders/" + orderId + "/items");
+            const response = await fetch("/api/orders/" + orderId + "/items");
             const items = await response.json();
 
             const itemsDiv = document.getElementById("items-" + orderId);

@@ -20,7 +20,7 @@
     const productId = params.get("id");
 
     async function loadProductDetail() {
-        const response = await fetch("http://localhost:8080/api/products/" + productId);
+        const response = await fetch("/api/products/" + productId);
         const product = await response.json();
 
         const detailDiv = document.getElementById("productDetail");
@@ -60,7 +60,7 @@
             return;
         }
 
-        const response = await fetch("http://localhost:8080/api/cart", {
+        const response = await fetch("/api/cart", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

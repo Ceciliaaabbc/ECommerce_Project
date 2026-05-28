@@ -64,7 +64,7 @@
             const status = document.getElementById("status-" + orderId).value;
 
             await fetch(
-                "http://localhost:8080/api/orders/" + orderId + "/status?status=" + status,
+                "/api/orders/" + orderId + "/status?status=" + status,
                 {
                     method: "PUT"
                 }

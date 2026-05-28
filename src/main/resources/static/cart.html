@@ -25,7 +25,7 @@
             }
 
             const response = await fetch(
-                "http://localhost:8080/api/cart?userEmail=" + userEmail
+                "/api/cart?userEmail=" + userEmail
             );
 
             const cartItems = await response.json();
@@ -74,7 +74,7 @@
         async function updateQuantity(id) {
             const quantity = document.getElementById("quantity-" + id).value;
 
-            await fetch("http://localhost:8080/api/cart/" + id + "?quantity=" + quantity, {
+            await fetch("/api/cart/" + id + "?quantity=" + quantity, {
                 method: "PUT"
             });
 
@@ -82,7 +82,7 @@
         }
 
         async function removeItem(id) {
-            await fetch("http://localhost:8080/api/cart/" + id, {
+            await fetch("/api/cart/" + id, {
                 method: "DELETE"
             });
 
@@ -98,7 +98,7 @@
             }
 
             const response = await fetch(
-                "http://localhost:8080/api/orders/checkout?userEmail=" + userEmail,
+                "/api/orders/checkout?userEmail=" + userEmail,
                 {
                     method: "POST"
                 }

@@ -41,7 +41,7 @@
     document.getElementById("user").innerText = "Logged in as: " + userEmail;
 
     async function loadProducts() {
-        const response = await fetch("http://localhost:8080/api/products");
+        const response = await fetch("/api/products");
         const products = await response.json();
 
         displayProducts(products);
@@ -55,7 +55,7 @@
             return;
         }
 
-        const response = await fetch("http://localhost:8080/api/cart", {
+        const response = await fetch("/api/cart", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -78,7 +78,7 @@
         const keyword = document.getElementById("searchKeyword").value;
 
         const response = await fetch(
-            "http://localhost:8080/api/products/search?keyword=" + keyword
+            "/api/products/search?keyword=" + keyword
         );
 
         const products = await response.json();
@@ -90,7 +90,7 @@
         const category = document.getElementById("categoryKeyword").value;
 
         const response = await fetch(
-            "http://localhost:8080/api/products/category?category=" + category
+            "/api/products/category?category=" + category
         );
 
         const products = await response.json();
