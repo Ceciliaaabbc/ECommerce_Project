@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Product Detail</title>
+    <link rel="stylesheet" href="/productDetails.css">
+</head>
+<body>
+
+<div class="page">
+
+    <a href="/products.html" class="back-link">← Back to Products</a>
+
+    <div id="productDetail" class="product-detail"></div>
+
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get("id");
+
+    async function loadProductDetail() {
+        const response = await fetch("http://localhost:8080/api/products/" + productId);
+        const product = await response.json();
+
+        const detailDiv = document.getElementById("productDetail");
+
+        detailDiv.innerHTML = `
+            <div class="image-section">
+                <img 
+                    src="${product.imageUrl}" 
+                    alt="${product.title}"
+                    onerror="this.src='https://placehold.co/400x400?text=No+Image'"
+                >
+            </div>
+
+            <div class="info-section">
+                <h1>${product.title}</h1>
+
+                <p class="category">Category: ${product.category}</p>
+
+                <p class="price">£${product.price}</p>
+
+                <p class="stock">Stock: ${product.stock}</p>
+
+                <p class="description">${product.description}</p>
+
+                <button onclick="addToCart(${product.id}, '${product.title}', ${product.price})">
+                    Add to Cart
+                </button>
+            </div>
+        `;
+    }
+
+    async function addToCart(productId, title, price) {
+        const userEmail = localStorage.getItem("userEmail");
+
+        if (!userEmail) {
+            window.location.href = "/login.html";
+            return;
+        }
+
+        const response = await fetch("http://localhost:8080/api/cart", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                userEmail: userEmail,
+                productId: productId,
+                title: title,
+                price: price,
+                quantity: 1
+            })
+        });
+
+        const result = await response.json();
+        alert("Added to cart: " + result.title);
+    }
+
+    loadProductDetail();
+</script>
+
+</body>
+</html>

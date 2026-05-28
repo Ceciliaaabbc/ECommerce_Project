@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Products</title>
+    <link rel="stylesheet" href="/products.css">
+</head>
+<body>
+    <h1>Product List</h1>
+
+    <p id="user"></p>
+
+    <button onclick="logout()">Logout</button>
+    <a href="/cart.html">View Cart</a>
+    <a id="adminLink" href="/admin.html" style="display: none;">Admin Page</a>
+
+
+    <input id="searchKeyword" placeholder="Search products">
+    <button onclick="searchProducts()">Search</button>
+    <button onclick="loadProducts()">Show All</button>
+
+    <input id="categoryKeyword" placeholder="Category">
+    <button onclick="filterByCategory()">Filter Category</button>
+    
+
+    <div id="products"></div>
+<script>
+
+    // 普通用户看不到 Admin Page
+    const userRole = localStorage.getItem("userRole");
+    if (userRole === "ADMIN") {
+        document.getElementById("adminLink").style.display = "inline";
+    }
+
+    const userEmail = localStorage.getItem("userEmail");
+
+    if (!userEmail) {
+        window.location.href = "/login.html";
+    }
+
+    document.getElementById("user").innerText = "Logged in as: " + userEmail;
+
+    async function loadProducts() {
+        const response = await fetch("http://localhost:8080/api/products");
+        const products = await response.json();
+
+        displayProducts(products);
+    }
+
+    async function addToCart(productId, title, price) {
+        const userEmail = localStorage.getItem("userEmail");
+
+        if (!userEmail) {
+            window.location.href = "/login.html";
+            return;
+        }
+
+        const response = await fetch("http://localhost:8080/api/cart", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                userEmail: userEmail,
+                productId: productId,
+                title: title,
+                price: price,
+                quantity: 1
+            })
+        });
+
+        const result = await response.json();
+        alert("Added to cart: " + result.title);
+    }
+
+
+    async function searchProducts() {
+        const keyword = document.getElementById("searchKeyword").value;
+
+        const response = await fetch(
+            "http://localhost:8080/api/products/search?keyword=" + keyword
+        );
+
+        const products = await response.json();
+
+        displayProducts(products);
+    }
+
+    async function filterByCategory() {
+        const category = document.getElementById("categoryKeyword").value;
+
+        const response = await fetch(
+            "http://localhost:8080/api/products/category?category=" + category
+        );
+
+        const products = await response.json();
+
+        displayProducts(products);
+    }
+
+    function displayProducts(products) {
+        const productsDiv = document.getElementById("products");
+        productsDiv.innerHTML = "";
+
+        products.forEach(product => {
+            const div = document.createElement("div");
+            div.innerHTML = `
+                <h3>
+                    <a href="/productDetails.html?id=${product.id}">
+                        ${product.title}
+                    </a>
+                </h3>
+
+            <img 
+                src="${product.imageUrl}" 
+                alt="${product.title}" 
+                width="200"
+                onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<p>Image failed: ${product.imageUrl}</p>')"
+            >
+
+                <p>Category: ${product.category}</p>
+                <p>${product.description}</p>
+                <p>Price: ${product.price}</p>
+                <p>Stock: ${product.stock}</p>
+
+                <button onclick="addToCart(${product.id}, '${product.title}', ${product.price})">
+                    Add to Cart
+                </button>
+
+                <hr>
+            `;
+
+            productsDiv.appendChild(div);
+        });
+    }
+
+    function logout() {
+        localStorage.removeItem("userEmail");
+        window.location.href = "/login.html";
+    }
+
+
+
+    loadProducts();
+</script>
+</body>
+</html>

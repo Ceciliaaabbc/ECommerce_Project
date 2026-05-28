@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Orders</title>
+    <link rel="stylesheet" href="/orders.css">
+</head>
+<body>
+    <h1>Your Orders</h1>
+
+    <a href="/products.html">Back to Products</a>
+
+    <div id="orders"></div>
+
+    <script>
+
+        async function loadOrders() {
+    const userEmail = localStorage.getItem("userEmail");
+
+    if (!userEmail) {
+        window.location.href = "/login.html";
+        return;
+    }
+
+    const response = await fetch(
+        "http://localhost:8080/api/orders?userEmail=" + userEmail
+    );
+
+    const orders = await response.json();
+
+            const ordersDiv = document.getElementById("orders");
+            ordersDiv.innerHTML = "";
+
+            orders.forEach(order => {
+                const div = document.createElement("div");
+
+                div.innerHTML = `
+                    <h3>Order ID: ${order.id}</h3>
+                    <p>User: ${order.userEmail}</p>
+                    <p>Total: ${order.total}</p>
+                    <p>Status: ${order.status}</p>
+                    <p>Created At: ${order.createdAt}</p>
+
+                    <button onclick="loadOrderItems(${order.id})">
+                        View Items
+                    </button>
+
+                    <div id="items-${order.id}"></div>
+                    <hr>
+                `;
+
+                ordersDiv.appendChild(div);
+            });
+        }
+
+        async function loadOrderItems(orderId) {
+            const response = await fetch("http://localhost:8080/api/orders/" + orderId + "/items");
+            const items = await response.json();
+
+            const itemsDiv = document.getElementById("items-" + orderId);
+            itemsDiv.innerHTML = "<h4>Items:</h4>";
+
+            items.forEach(item => {
+                const div = document.createElement("div");
+
+                div.innerHTML = `
+                    <p>${item.title} - Price: ${item.price} - Quantity: ${item.quantity}</p>
+                `;
+
+                itemsDiv.appendChild(div);
+            });
+        }
+
+        loadOrders();
+    </script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f6f6f6;
+    margin: 0;
+    padding: 30px;
+}
+
+h1 {
+    color: #ff5000;
+}
+
+a {
+    color: #0077cc;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+#orders {
+    margin-top: 25px;
+}
+
+#orders > div {
+    background: white;
+    padding: 20px;
+    margin-bottom: 18px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+
+#orders h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+#orders p {
+    margin: 7px 0;
+}
+
+select {
+    padding: 9px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    margin-right: 10px;
+}
+
+button {
+    background: #ff5000;
+    color: white;
+    border: none;
+    padding: 9px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #e64500;
+}

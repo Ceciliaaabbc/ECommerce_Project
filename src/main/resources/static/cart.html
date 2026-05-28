@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cart</title>
+    <link rel="stylesheet" href="/cart.css">
+</head>
+<body>
+    <h1>Your Cart</h1>
+
+    <a href="/products.html">Back to Products</a>
+
+    <div id="cart"></div>
+
+    <h2 id="total"></h2>
+
+    <button onclick="checkout()">Checkout</button>
+
+    <script>
+        async function loadCart() {
+            const userEmail = localStorage.getItem("userEmail");
+
+            if (!userEmail) {
+                window.location.href = "/login.html";
+                return;
+            }
+
+            const response = await fetch(
+                "http://localhost:8080/api/cart?userEmail=" + userEmail
+            );
+
+            const cartItems = await response.json();
+
+            const cartDiv = document.getElementById("cart");
+            const totalDiv = document.getElementById("total");
+
+            cartDiv.innerHTML = "";
+
+            let total = 0;
+
+            cartItems.forEach(item => {
+                total += item.price * item.quantity;
+
+                const div = document.createElement("div");
+
+                div.innerHTML = `
+                    <h3>${item.title}</h3>
+                    <p>Price: ${item.price}</p>
+
+                    <label>Quantity:</label>
+                    <input 
+                        type="number" 
+                        min="1" 
+                        value="${item.quantity}" 
+                        id="quantity-${item.id}"
+                    >
+
+                    <button onclick="updateQuantity(${item.id})">
+                        Update Quantity
+                    </button>
+
+                    <button onclick="removeItem(${item.id})">
+                        Remove
+                    </button>
+
+                    <hr>
+                `;
+
+                cartDiv.appendChild(div);
+            });
+
+            totalDiv.innerText = "Total: " + total;
+        }
+
+        async function updateQuantity(id) {
+            const quantity = document.getElementById("quantity-" + id).value;
+
+            await fetch("http://localhost:8080/api/cart/" + id + "?quantity=" + quantity, {
+                method: "PUT"
+            });
+
+            loadCart();
+        }
+
+        async function removeItem(id) {
+            await fetch("http://localhost:8080/api/cart/" + id, {
+                method: "DELETE"
+            });
+
+            loadCart();
+        }
+
+        async function checkout() {
+            const userEmail = localStorage.getItem("userEmail");
+
+            if (!userEmail) {
+                window.location.href = "/login.html";
+                return;
+            }
+
+            const response = await fetch(
+                "http://localhost:8080/api/orders/checkout?userEmail=" + userEmail,
+                {
+                    method: "POST"
+                }
+            );
+
+            const order = await response.json();
+
+            alert("Order created. Order ID: " + order.id);
+
+            window.location.href = "/orders.html";
+        }
+
+        loadCart();
+    </script>
+</body>
+</html>
