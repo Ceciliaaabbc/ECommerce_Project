@@ -136,6 +136,8 @@
 
     function logout() {
         localStorage.removeItem("userEmail");
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("token");
         window.location.href = "/login.html";
     }
 

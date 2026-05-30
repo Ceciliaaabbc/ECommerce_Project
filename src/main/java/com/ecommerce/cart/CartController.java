@@ -1,7 +1,7 @@
 package com.ecommerce.cart;
 
 import org.springframework.web.bind.annotation.*;
-
+import com.ecommerce.security.JwtUtil;
 import java.util.List;
 
 @RestController
@@ -10,20 +10,33 @@ import java.util.List;
 public class CartController {
 
     private final CartItemRepository cartItemRepository;
+    private final JwtUtil jwtUtil;
 
-    public CartController(CartItemRepository cartItemRepository) {
+    public CartController(CartItemRepository cartItemRepository, JwtUtil jwtUtil) {
         this.cartItemRepository = cartItemRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @GetMapping
-    public List<CartItem> getCartItems(@RequestParam String userEmail) {
+    public List<CartItem> getCartItems(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7);
+        String userEmail = jwtUtil.getEmailFromToken(token);
+
         return cartItemRepository.findByUserEmail(userEmail);
     }
 
     @PostMapping
-    public CartItem addToCart(@RequestBody CartItem cartItem) {
+    public CartItem addToCart(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody CartItem cartItem
+    ) {
+        String token = authHeader.substring(7);
+        String userEmail = jwtUtil.getEmailFromToken(token);
+
+        cartItem.setUserEmail(userEmail);
+
         CartItem existingItem = cartItemRepository
-                .findByUserEmailAndProductId(cartItem.getUserEmail(), cartItem.getProductId())
+                .findByUserEmailAndProductId(userEmail, cartItem.getProductId())
                 .orElse(null);
 
         if (existingItem != null) {

@@ -2,6 +2,7 @@ package com.ecommerce.user;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import com.ecommerce.security.JwtUtil;
 
 import java.util.List;
 
@@ -12,12 +13,13 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
-    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder,  JwtUtil jwtUtil  ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
-
     @PostMapping("/register")
     public String registerUser(@RequestBody User user) {
         User existingUser = userRepository.findByEmail(user.getEmail())
@@ -37,15 +39,11 @@ public class UserController {
         return "Register successful";
     }
 
-    // 登录成功后返回用户信息
+    // 登录成功后返回用户email, role, token
     @PostMapping("/login")
-    public User loginUser(@RequestBody LoginRequest loginRequest) {
+    public LoginResponse loginUser(@RequestBody LoginRequest loginRequest) {
         User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElse(null);
-
-        if (user == null) {
-            throw new RuntimeException("User not found");
-        }
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         boolean passwordMatches = passwordEncoder.matches(
                 loginRequest.getPassword(),
@@ -56,7 +54,9 @@ public class UserController {
             throw new RuntimeException("Wrong password");
         }
 
-        return user;
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
+
+        return new LoginResponse(user.getEmail(), user.getRole(), token);
     }
 
     @GetMapping

@@ -6,7 +6,7 @@ import com.ecommerce.product.Product;
 import com.ecommerce.product.ProductRepository;
 import com.ecommerce.user.User;
 import com.ecommerce.user.UserRepository;
-
+import com.ecommerce.security.JwtUtil;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,23 +21,30 @@ public class OrderController {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
     public OrderController(
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             CartItemRepository cartItemRepository,
             ProductRepository productRepository,
-            UserRepository userRepository
+            UserRepository userRepository, 
+            JwtUtil jwtUtil
     ) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartItemRepository = cartItemRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;;
     }
 
+
     @PostMapping("/checkout")
-    public Order checkout(@RequestParam String userEmail) {
+    public Order checkout(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7);
+        String userEmail = jwtUtil.getEmailFromToken(token);
+
         List<CartItem> cartItems = cartItemRepository.findByUserEmail(userEmail);
 
         if (cartItems.isEmpty()) {
@@ -84,23 +91,20 @@ public class OrderController {
     }
 
     @GetMapping
-    public List<Order> getOrders(
-            @RequestParam String userEmail
-    ) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public List<Order> getOrders(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7);
 
-        if ("ADMIN".equals(user.getRole())) {
+        String userEmail = jwtUtil.getEmailFromToken(token);
+        String role = jwtUtil.getRoleFromToken(token);
+
+        if ("ADMIN".equals(role)) {
             return orderRepository.findAll();
         }
 
         return orderRepository.findByUserEmail(userEmail);
     }
 
-    // @GetMapping
-    // public List<Order> getOrdersByUserEmail(@RequestParam String userEmail) {
-    //     return orderRepository.findByUserEmail(userEmail);
-    // }
+
 
     @GetMapping("/{orderId}/items")
     public List<OrderItem> getOrderItems(@PathVariable Long orderId) {

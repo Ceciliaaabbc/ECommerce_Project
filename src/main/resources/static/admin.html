@@ -61,10 +61,14 @@
             const stock = Number(document.getElementById("stock").value);
 
             const adminEmail = localStorage.getItem("userEmail");
-            const response = await fetch("/api/products?adminEmail=" + adminEmail, {
+            
+            const token = localStorage.getItem("token");
+
+            const response = await fetch("/api/products", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
                 },
                 body: JSON.stringify({
                     title: title,
@@ -146,8 +150,13 @@
         async function deleteProduct(id) {
             const adminEmail = localStorage.getItem("userEmail");
 
-            await fetch("/api/products/" + id + "?adminEmail=" + adminEmail, {
-                method: "DELETE"
+            const token = localStorage.getItem("token");
+
+            await fetch("/api/products/" + id, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
             });
             loadProducts();
         }
@@ -162,10 +171,13 @@
 
             const adminEmail = localStorage.getItem("userEmail");
 
-            await fetch("/api/products/" + id + "?adminEmail=" + adminEmail, {
+            const token = localStorage.getItem("token");
+
+            await fetch("/api/products/" + id, {
                 method: "PUT",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
                 },
                 body: JSON.stringify({
                     title: title,

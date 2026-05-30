@@ -3,6 +3,7 @@ package com.ecommerce.product;
 import com.ecommerce.user.User;
 import com.ecommerce.user.UserRepository;
 import org.springframework.web.bind.annotation.*;
+import com.ecommerce.security.JwtUtil;// 前端必须传 JWT token, 后端从 token 判断是否 ADMIN
 
 import java.util.List;
 
@@ -13,10 +14,12 @@ public class ProductController {
 
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
-    public ProductController(ProductRepository productRepository, UserRepository userRepository) {
+    public ProductController(ProductRepository productRepository,UserRepository userRepository, JwtUtil jwtUtil) {
         this.productRepository = productRepository;
         this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @GetMapping
@@ -31,26 +34,21 @@ public class ProductController {
     }
 
     @PostMapping
-    public Product createProduct(
-            @RequestParam String adminEmail,
-            @RequestBody Product product
-    ) {
-        checkAdmin(adminEmail);
+    public Product createProduct( @RequestHeader("Authorization") String authHeader, @RequestBody Product product ) {
+        checkAdmin(authHeader);
         return productRepository.save(product);
     }
 
     @PutMapping("/{id}")
-    public Product updateProduct(
-            @PathVariable Long id,
-            @RequestParam String adminEmail,
-            @RequestBody Product updatedProduct
-    ) {
-        checkAdmin(adminEmail);
+    public Product updateProduct( @PathVariable Long id, @RequestHeader("Authorization") String authHeader,
+            @RequestBody Product updatedProduct) {
+        checkAdmin(authHeader);
 
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
         product.setTitle(updatedProduct.getTitle());
+        product.setCategory(updatedProduct.getCategory());
         product.setDescription(updatedProduct.getDescription());
         product.setPrice(updatedProduct.getPrice());
         product.setImageUrl(updatedProduct.getImageUrl());
@@ -60,11 +58,8 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
-    public String deleteProduct(
-            @PathVariable Long id,
-            @RequestParam String adminEmail
-    ) {
-        checkAdmin(adminEmail);
+    public String deleteProduct(@PathVariable Long id,@RequestHeader("Authorization") String authHeader ) {
+        checkAdmin(authHeader);
 
         productRepository.deleteById(id);
         return "Product deleted";
@@ -80,11 +75,15 @@ public class ProductController {
         return productRepository.findByCategoryIgnoreCase(category);
     }
 
-    private void checkAdmin(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    private void checkAdmin(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Missing token");
+        }
 
-        if (!"ADMIN".equals(user.getRole())) {
+        String token = authHeader.substring(7);
+        String role = jwtUtil.getRoleFromToken(token);
+
+        if (!"ADMIN".equals(role)) {
             throw new RuntimeException("Only admin can do this");
         }
     }
