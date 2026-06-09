@@ -9,8 +9,18 @@ spring:
       ddl-auto: update
     show-sql: true
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
 server:
   port: ${PORT:8080}
 
 jwt:
   secret: ${JWT_SECRET:my-super-secret-key-my-super-secret-key-123456}
+
+aws:
+  region: ${AWS_REGION}
+  s3:
+    bucket: ${AWS_S3_BUCKET}

@@ -3,7 +3,10 @@ package com.ecommerce.product;
 import com.ecommerce.user.User;
 import com.ecommerce.user.UserRepository;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.ecommerce.security.JwtUtil;// 前端必须传 JWT token, 后端从 token 判断是否 ADMIN
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -15,11 +18,13 @@ public class ProductController {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+    private final ProductImageService productImageService;
 
-    public ProductController(ProductRepository productRepository,UserRepository userRepository, JwtUtil jwtUtil) {
+    public ProductController(ProductRepository productRepository,UserRepository userRepository, JwtUtil jwtUtil, ProductImageService productImageService) {
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
+        this.productImageService = productImageService;
     }
 
     @GetMapping
@@ -73,6 +78,24 @@ public class ProductController {
     @GetMapping("/category")
     public List<Product> getProductsByCategory(@RequestParam String category) {
         return productRepository.findByCategoryIgnoreCase(category);
+    }
+
+    @PostMapping("/{id}/image")
+    public Product uploadProductImage(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam("image") MultipartFile image
+    ) throws Exception {
+        checkAdmin(authHeader);
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        String imageUrl = productImageService.uploadProductImage(image);
+
+        product.setImageUrl(imageUrl);
+
+        return productRepository.save(product);
     }
 
     private void checkAdmin(String authHeader) {
