@@ -8,7 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/reviews")
-@CrossOrigin(origins = "*")
+// @CrossOrigin(origins = "*")
 public class ReviewController {
 
     private final ReviewRepository reviewRepository;
