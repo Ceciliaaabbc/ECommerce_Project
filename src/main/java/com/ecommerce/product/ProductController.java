@@ -44,8 +44,11 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    public Product updateProduct( @PathVariable Long id, @RequestHeader("Authorization") String authHeader,
-            @RequestBody Product updatedProduct) {
+    public Product updateProduct(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody Product updatedProduct
+    ) {
         checkAdmin(authHeader);
 
         Product product = productRepository.findById(id)
@@ -55,8 +58,11 @@ public class ProductController {
         product.setCategory(updatedProduct.getCategory());
         product.setDescription(updatedProduct.getDescription());
         product.setPrice(updatedProduct.getPrice());
-        product.setImageUrl(updatedProduct.getImageUrl());
         product.setStock(updatedProduct.getStock());
+
+        if (updatedProduct.getImageUrl() != null && !updatedProduct.getImageUrl().isBlank()) {
+            product.setImageUrl(updatedProduct.getImageUrl());
+        }
 
         return productRepository.save(product);
     }
