@@ -1,40 +1,55 @@
-// package com.ecommerce.config;
+package com.ecommerce.config;
 
-// import org.springframework.context.annotation.Bean;
-// import org.springframework.context.annotation.Configuration;
-// import org.springframework.core.Ordered;
-// import org.springframework.core.annotation.Order;
-// import org.springframework.web.cors.CorsConfiguration;
-// import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-// import org.springframework.web.filter.CorsFilter;
+import jakarta.servlet.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-// import java.util.List;
+import java.io.IOException;
 
-// @Configuration
-// public class CorsConfig {
+@Configuration
+public class CorsConfig {
 
-//     @Bean
-//     @Order(Ordered.HIGHEST_PRECEDENCE)
-//     public CorsFilter corsFilter() {
-//         CorsConfiguration config = new CorsConfiguration();
+    @Bean
+    public FilterRegistrationBean<Filter> corsFilter() {
+        FilterRegistrationBean<Filter> bean = new FilterRegistrationBean<>();
 
-//         config.setAllowedOrigins(List.of(
-//                 "https://ecommerce-frontend-one-theta.vercel.app",
-//                 "http://localhost:5173"
-//         ));
+        bean.setFilter(new Filter() {
+            @Override
+            public void doFilter(
+                    ServletRequest servletRequest,
+                    ServletResponse servletResponse,
+                    FilterChain filterChain
+            ) throws IOException, ServletException {
 
-//         config.setAllowedMethods(List.of(
-//                 "GET", "POST", "PUT", "DELETE", "OPTIONS"
-//         ));
+                HttpServletRequest request = (HttpServletRequest) servletRequest;
+                HttpServletResponse response = (HttpServletResponse) servletResponse;
 
-//         config.setAllowedHeaders(List.of("*"));
-//         config.setExposedHeaders(List.of("Authorization"));
-//         config.setAllowCredentials(false);
-//         config.setMaxAge(3600L);
+                String origin = request.getHeader("Origin");
 
-//         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-//         source.registerCorsConfiguration("/**", config);
+                if (origin != null) {
+                    response.setHeader("Access-Control-Allow-Origin", origin);
+                }
 
-//         return new CorsFilter(source);
-//     }
-// }
+                response.setHeader("Vary", "Origin");
+                response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin");
+                response.setHeader("Access-Control-Max-Age", "3600");
+
+                if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                    response.setStatus(HttpServletResponse.SC_OK);
+                    return;
+                }
+
+                filterChain.doFilter(servletRequest, servletResponse);
+            }
+        });
+
+        bean.addUrlPatterns("/*");
+        bean.setOrder(Integer.MIN_VALUE);
+
+        return bean;
+    }
+}
