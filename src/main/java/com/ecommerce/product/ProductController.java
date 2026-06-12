@@ -9,10 +9,10 @@ import com.ecommerce.security.JwtUtil;// 前端必须传 JWT token, 后端从 to
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import org.springframework.web.bind.annotation.RequestMethod;
 
 @RestController
 @RequestMapping("/api/products")
-// @CrossOrigin(origins = "*")
 public class ProductController {
 
     private final ProductRepository productRepository;
@@ -96,6 +96,10 @@ public class ProductController {
         product.setImageUrl(imageUrl);
 
         return productRepository.save(product);
+    }
+
+    @RequestMapping(value = "/{id}/image", method = RequestMethod.OPTIONS)
+    public void handleImageUploadPreflight() {
     }
 
     private void checkAdmin(String authHeader) {
