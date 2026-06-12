@@ -24,3 +24,9 @@ aws:
   region: ${AWS_REGION}
   s3:
     bucket: ${AWS_S3_BUCKET}
+
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY}
+
+frontend:
+  url: ${FRONTEND_URL}

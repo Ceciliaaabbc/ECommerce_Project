@@ -19,6 +19,11 @@ public class Order {
 
     private LocalDateTime createdAt;
 
+    private String paymentStatus;
+    private String stripeSessionId;
+
+    
+
     public Order() {
     }
 
@@ -26,6 +31,7 @@ public class Order {
         this.userEmail = userEmail;
         this.total = total;
         this.status = status;
+        this.paymentStatus = "UNPAID";
         this.createdAt = LocalDateTime.now();
     }
 
@@ -51,5 +57,21 @@ public class Order {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public String getStripeSessionId() {
+        return stripeSessionId;
+    }
+
+    public void setStripeSessionId(String stripeSessionId) {
+        this.stripeSessionId = stripeSessionId;
     }
 }

@@ -8,6 +8,10 @@ import com.ecommerce.user.User;
 import com.ecommerce.user.UserRepository;
 import com.ecommerce.security.JwtUtil;
 import org.springframework.web.bind.annotation.*;
+import com.stripe.Stripe;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.checkout.SessionCreateParams;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 
@@ -21,6 +25,12 @@ public class OrderController {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+
+    @Value("${stripe.secret-key}")
+    private String stripeSecretKey;
+
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     public OrderController(
             OrderRepository orderRepository,
@@ -40,7 +50,7 @@ public class OrderController {
 
 
     @PostMapping("/checkout")
-    public Order checkout(@RequestHeader("Authorization") String authHeader) {
+    public CheckoutResponse checkout(@RequestHeader("Authorization") String authHeader) throws Exception {
         String token = authHeader.substring(7);
         String userEmail = jwtUtil.getEmailFromToken(token);
 
@@ -63,7 +73,7 @@ public class OrderController {
             total += item.getPrice() * item.getQuantity();
         }
 
-        Order order = new Order(userEmail, total, "PENDING");
+        Order order = new Order(userEmail, total, "PENDING_PAYMENT");
         Order savedOrder = orderRepository.save(order);
 
         for (CartItem item : cartItems) {
@@ -86,7 +96,37 @@ public class OrderController {
 
         cartItemRepository.deleteAll(cartItems);
 
-        return savedOrder;
+        Stripe.apiKey = stripeSecretKey;
+
+        SessionCreateParams params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .setSuccessUrl(frontendUrl + "/orders")
+                .setCancelUrl(frontendUrl + "/cart")
+                .setClientReferenceId(savedOrder.getId().toString())
+                .addLineItem(
+                        SessionCreateParams.LineItem.builder()
+                                .setQuantity(1L)
+                                .setPriceData(
+                                        SessionCreateParams.LineItem.PriceData.builder()
+                                                .setCurrency("usd")
+                                                .setUnitAmount(Math.round(total * 100))
+                                                .setProductData(
+                                                        SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                .setName("Order #" + savedOrder.getId())
+                                                                .build()
+                                                )
+                                                .build()
+                                )
+                                .build()
+                )
+                .build();
+
+        Session session = Session.create(params);
+
+        savedOrder.setStripeSessionId(session.getId());
+        orderRepository.save(savedOrder);
+
+        return new CheckoutResponse(savedOrder.getId(), session.getUrl());
     }
 
     @GetMapping
