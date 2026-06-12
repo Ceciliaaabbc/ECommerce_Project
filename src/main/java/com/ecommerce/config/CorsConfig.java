@@ -1,8 +1,13 @@
 package com.ecommerce.config;
 
-import jakarta.servlet.*;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +31,11 @@ public class CorsConfig {
 
                 HttpServletRequest request = (HttpServletRequest) servletRequest;
                 HttpServletResponse response = (HttpServletResponse) servletResponse;
+
+                System.out.println("CORS FILTER HIT: "
+                        + request.getMethod()
+                        + " "
+                        + request.getRequestURI());
 
                 String origin = request.getHeader("Origin");
 
