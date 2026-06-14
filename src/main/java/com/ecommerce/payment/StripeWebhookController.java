@@ -2,8 +2,9 @@ package com.ecommerce.payment;
 
 import com.ecommerce.order.Order;
 import com.ecommerce.order.OrderRepository;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.stripe.model.Event;
-import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -28,42 +29,47 @@ public class StripeWebhookController {
             @RequestBody String payload,
             @RequestHeader("Stripe-Signature") String sigHeader
     ) {
-        Event event;
-
         try {
-            event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Webhook signature verification failed");
-        }
+            Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
 
-        if ("checkout.session.completed".equals(event.getType())) {
-            Session session = (Session) event.getDataObjectDeserializer()
-                    .getObject()
-                    .orElse(null);
+            if ("checkout.session.completed".equals(event.getType())) {
+                JsonObject root = JsonParser.parseString(payload).getAsJsonObject();
+                JsonObject sessionObject = root
+                        .getAsJsonObject("data")
+                        .getAsJsonObject("object");
 
-            if (session == null) {
-                System.out.println("Stripe session is null");
-                return ResponseEntity.ok("Session is null");
+                String sessionId = sessionObject.get("id").getAsString();
+                String clientReferenceId = sessionObject.get("client_reference_id").getAsString();
+                String paymentStatus = sessionObject.get("payment_status").getAsString();
+
+                System.out.println("Webhook sessionId: " + sessionId);
+                System.out.println("Webhook clientReferenceId: " + clientReferenceId);
+                System.out.println("Webhook paymentStatus: " + paymentStatus);
+
+                if (!"paid".equals(paymentStatus)) {
+                    return ResponseEntity.ok("Payment not paid yet");
+                }
+
+                Long orderId = Long.valueOf(clientReferenceId);
+
+                Order order = orderRepository.findById(orderId)
+                        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+                order.setStatus("PAID");
+                order.setPaymentStatus("PAID");
+                order.setStripeSessionId(sessionId);
+
+                orderRepository.save(order);
+
+                System.out.println("Order updated to PAID: " + orderId);
+
+                return ResponseEntity.ok("Order updated to PAID");
             }
 
-            System.out.println("Webhook session id: " + session.getId());
-            System.out.println("Webhook client reference id: " + session.getClientReferenceId());
-            System.out.println("Webhook payment status: " + session.getPaymentStatus());
-
-            Long orderId = Long.valueOf(session.getClientReferenceId());
-
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
-
-            order.setStatus("PAID");
-            order.setPaymentStatus("PAID");
-            order.setStripeSessionId(session.getId());
-
-            orderRepository.save(order);
-
-            System.out.println("Order updated to PAID: " + order.getId());
+            return ResponseEntity.ok("Event ignored");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Webhook failed: " + e.getMessage());
         }
-
-        return ResponseEntity.ok("Webhook received");
     }
 }
