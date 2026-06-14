@@ -94,7 +94,7 @@ public class OrderController {
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setSuccessUrl(frontendUrl + "/orders")
-                .setCancelUrl(frontendUrl + "/cart?payment=cancelled")
+                .setCancelUrl(frontendUrl + "/cart?payment=cancelled&orderId=" + savedOrder.getId())
                 .setClientReferenceId(savedOrder.getId().toString())
                 .addLineItem(
                         SessionCreateParams.LineItem.builder()
@@ -155,4 +155,29 @@ public class OrderController {
 
         return orderRepository.save(order);
     }
+
+        @PutMapping("/{orderId}/cancel-payment")
+        public Order cancelPayment(
+                @PathVariable Long orderId,
+                @RequestHeader("Authorization") String authHeader
+        ) {
+            String token = authHeader.substring(7);
+            String userEmail = jwtUtil.getEmailFromToken(token);
+
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Order not found"));
+
+            if (!order.getUserEmail().equals(userEmail)) {
+                throw new RuntimeException("You cannot cancel this order");
+            }
+
+            if ("PAID".equals(order.getPaymentStatus())) {
+                throw new RuntimeException("Paid order cannot be cancelled");
+            }
+
+            order.setStatus("CANCELLED");
+            order.setPaymentStatus("CANCELLED");
+
+            return orderRepository.save(order);
+        }
 }
