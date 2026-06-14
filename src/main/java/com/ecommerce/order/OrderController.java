@@ -95,7 +95,7 @@ public class OrderController {
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setSuccessUrl(frontendUrl + "/orders")
-                .setCancelUrl(frontendUrl + "/cart")
+                .setCancelUrl(frontendUrl + "/cart?payment=cancelled")
                 .setClientReferenceId(savedOrder.getId().toString())
                 .addLineItem(
                         SessionCreateParams.LineItem.builder()

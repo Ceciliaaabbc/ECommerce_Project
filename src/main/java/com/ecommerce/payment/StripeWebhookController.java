@@ -46,57 +46,83 @@ public class StripeWebhookController {
         try {
             Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
 
-            if (!"checkout.session.completed".equals(event.getType())) {
-                return ResponseEntity.ok("Event ignored: " + event.getType());
-            }
-
             JsonObject root = JsonParser.parseString(payload).getAsJsonObject();
-            JsonObject sessionObject = root
+            JsonObject object = root
                     .getAsJsonObject("data")
                     .getAsJsonObject("object");
 
-            String sessionId = sessionObject.get("id").getAsString();
-            String clientReferenceId = sessionObject.get("client_reference_id").getAsString();
-            String paymentStatus = sessionObject.get("payment_status").getAsString();
+            String eventType = event.getType();
 
-            if (!"paid".equals(paymentStatus)) {
-                return ResponseEntity.ok("Payment not paid yet: " + paymentStatus);
-            }
+            if ("checkout.session.completed".equals(eventType)) {
+                String sessionId = object.get("id").getAsString();
+                String clientReferenceId = object.get("client_reference_id").getAsString();
+                String paymentStatus = object.get("payment_status").getAsString();
 
-            Long orderId = Long.valueOf(clientReferenceId);
-
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
-
-            if ("PAID".equals(order.getPaymentStatus())) {
-                return ResponseEntity.ok("Order already paid: " + orderId);
-            }
-
-            List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
-
-            for (OrderItem item : orderItems) {
-                Product product = productRepository.findById(item.getProductId())
-                        .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
-
-                if (product.getStock() < item.getQuantity()) {
-                    throw new RuntimeException("Not enough stock for product: " + product.getTitle());
+                if (!"paid".equals(paymentStatus)) {
+                    return ResponseEntity.ok("Payment not paid yet");
                 }
 
-                product.setStock(product.getStock() - item.getQuantity());
-                productRepository.save(product);
+                Long orderId = Long.valueOf(clientReferenceId);
+
+                Order order = orderRepository.findById(orderId)
+                        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+                if ("PAID".equals(order.getPaymentStatus())) {
+                    return ResponseEntity.ok("Order already paid");
+                }
+
+                List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+
+                for (OrderItem item : orderItems) {
+                    Product product = productRepository.findById(item.getProductId())
+                            .orElseThrow(() -> new RuntimeException("Product not found"));
+
+                    if (product.getStock() < item.getQuantity()) {
+                        throw new RuntimeException("Not enough stock for product: " + product.getTitle());
+                    }
+
+                    product.setStock(product.getStock() - item.getQuantity());
+                    productRepository.save(product);
+                }
+
+                order.setStatus("PAID");
+                order.setPaymentStatus("PAID");
+                order.setStripeSessionId(sessionId);
+                orderRepository.save(order);
+
+                return ResponseEntity.ok("Order paid");
             }
 
-            order.setStatus("PAID");
-            order.setPaymentStatus("PAID");
-            order.setStripeSessionId(sessionId);
+            if ("checkout.session.expired".equals(eventType)) {
+                String clientReferenceId = object.get("client_reference_id").getAsString();
+                Long orderId = Long.valueOf(clientReferenceId);
 
-            orderRepository.save(order);
+                Order order = orderRepository.findById(orderId)
+                        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
-            return ResponseEntity.ok("Order paid and stock reduced: " + orderId);
+                if (!"PAID".equals(order.getPaymentStatus())) {
+                    order.setStatus("CANCELLED");
+                    order.setPaymentStatus("EXPIRED");
+                    orderRepository.save(order);
+                }
+
+                return ResponseEntity.ok("Order expired");
+            }
+
+            if ("payment_intent.payment_failed".equals(eventType)) {
+                String paymentIntentId = object.get("id").getAsString();
+
+                System.out.println("Payment failed. PaymentIntent ID: " + paymentIntentId);
+
+                return ResponseEntity.ok("Payment failed event received");
+            }
+
+            return ResponseEntity.ok("Event ignored: " + eventType);
 
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body("Webhook failed: " + e.getMessage());
         }
     }
+
 }
