@@ -125,6 +125,28 @@ public class StripeWebhookController {
                 return ResponseEntity.ok("Payment failed event received");
             }
 
+            if ("checkout.session.expired".equals(eventType)) {
+                String sessionId = object.get("id").getAsString();
+                String clientReferenceId = object.get("client_reference_id").getAsString();
+
+                Long orderId = Long.valueOf(clientReferenceId);
+
+                Order order = orderRepository.findById(orderId)
+                        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+                if ("PAID".equals(order.getPaymentStatus())) {
+                    return ResponseEntity.ok("Order already paid, ignore expired event: " + orderId);
+                }
+
+                order.setStatus("CANCELLED");
+                order.setPaymentStatus("EXPIRED");
+                order.setStripeSessionId(sessionId);
+
+                orderRepository.save(order);
+
+                return ResponseEntity.ok("Order expired and cancelled: " + orderId);
+            }
+
             return ResponseEntity.ok("Event ignored: " + eventType);
 
         } catch (Exception e) {
