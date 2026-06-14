@@ -34,6 +34,7 @@ public class ProductController {
 
     @GetMapping
     public Object getAllProducts() {
+        System.out.println("NEW REDIS PRODUCT CONTROLLER IS RUNNING");
         Object cachedProducts = productCacheService.getAllProductsFromCache();
 
         if (cachedProducts != null) {
