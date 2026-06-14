@@ -27,6 +27,7 @@ aws:
 
 stripe:
   secret-key: ${STRIPE_SECRET_KEY}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
 
 frontend:
   url: ${FRONTEND_URL}
