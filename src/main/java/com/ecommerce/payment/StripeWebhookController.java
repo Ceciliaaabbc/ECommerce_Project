@@ -41,17 +41,27 @@ public class StripeWebhookController {
                     .getObject()
                     .orElse(null);
 
-            if (session != null) {
-                String sessionId = session.getId();
-
-                Order order = orderRepository.findByStripeSessionId(sessionId)
-                        .orElseThrow(() -> new RuntimeException("Order not found for session: " + sessionId));
-
-                order.setStatus("PAID");
-                order.setPaymentStatus("PAID");
-
-                orderRepository.save(order);
+            if (session == null) {
+                System.out.println("Stripe session is null");
+                return ResponseEntity.ok("Session is null");
             }
+
+            System.out.println("Webhook session id: " + session.getId());
+            System.out.println("Webhook client reference id: " + session.getClientReferenceId());
+            System.out.println("Webhook payment status: " + session.getPaymentStatus());
+
+            Long orderId = Long.valueOf(session.getClientReferenceId());
+
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+            order.setStatus("PAID");
+            order.setPaymentStatus("PAID");
+            order.setStripeSessionId(session.getId());
+
+            orderRepository.save(order);
+
+            System.out.println("Order updated to PAID: " + order.getId());
         }
 
         return ResponseEntity.ok("Webhook received");
