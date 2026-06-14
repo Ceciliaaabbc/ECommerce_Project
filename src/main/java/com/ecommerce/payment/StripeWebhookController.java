@@ -1,5 +1,6 @@
 package com.ecommerce.payment;
 
+import com.ecommerce.cart.CartItemRepository;
 import com.ecommerce.order.Order;
 import com.ecommerce.order.OrderItem;
 import com.ecommerce.order.OrderItemRepository;
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import com.ecommerce.cart.CartItemRepository;
+
 @RestController
 @RequestMapping("/api/payments")
 public class StripeWebhookController {
@@ -24,6 +27,7 @@ public class StripeWebhookController {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
+    private final CartItemRepository cartItemRepository;
 
     @Value("${stripe.webhook-secret}")
     private String webhookSecret;
@@ -31,11 +35,13 @@ public class StripeWebhookController {
     public StripeWebhookController(
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
-            ProductRepository productRepository
+            ProductRepository productRepository,
+            CartItemRepository cartItemRepository
     ) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.productRepository = productRepository;
+        this.cartItemRepository = cartItemRepository;
     }
 
     @PostMapping("/webhook")
@@ -89,6 +95,8 @@ public class StripeWebhookController {
                 order.setPaymentStatus("PAID");
                 order.setStripeSessionId(sessionId);
                 orderRepository.save(order);
+
+                cartItemRepository.deleteByUserEmail(order.getUserEmail());
 
                 return ResponseEntity.ok("Order paid");
             }

@@ -88,7 +88,6 @@ public class OrderController {
             orderItemRepository.save(orderItem);
         }
 
-        cartItemRepository.deleteAll(cartItems);
 
         Stripe.apiKey = stripeSecretKey;
 
