@@ -1,7 +1,11 @@
 package com.ecommerce.payment;
 
 import com.ecommerce.order.Order;
+import com.ecommerce.order.OrderItem;
+import com.ecommerce.order.OrderItemRepository;
 import com.ecommerce.order.OrderRepository;
+import com.ecommerce.product.Product;
+import com.ecommerce.product.ProductRepository;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.stripe.model.Event;
@@ -11,18 +15,27 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/payments")
 public class StripeWebhookController {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ProductRepository productRepository;
 
     @Value("${stripe.webhook-secret}")
     private String webhookSecret;
 
-    public StripeWebhookController(OrderRepository orderRepository) {
+    public StripeWebhookController(
+            OrderRepository orderRepository,
+            OrderItemRepository orderItemRepository,
+            ProductRepository productRepository
+    ) {
         this.orderRepository = orderRepository;
-        System.out.println("StripeWebhookController loaded - JSON version");
+        this.orderItemRepository = orderItemRepository;
+        this.productRepository = productRepository;
     }
 
     @PostMapping("/webhook")
@@ -32,8 +45,6 @@ public class StripeWebhookController {
     ) {
         try {
             Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
-
-            System.out.println("Stripe webhook event type: " + event.getType());
 
             if (!"checkout.session.completed".equals(event.getType())) {
                 return ResponseEntity.ok("Event ignored: " + event.getType());
@@ -48,10 +59,6 @@ public class StripeWebhookController {
             String clientReferenceId = sessionObject.get("client_reference_id").getAsString();
             String paymentStatus = sessionObject.get("payment_status").getAsString();
 
-            System.out.println("Webhook sessionId: " + sessionId);
-            System.out.println("Webhook clientReferenceId: " + clientReferenceId);
-            System.out.println("Webhook paymentStatus: " + paymentStatus);
-
             if (!"paid".equals(paymentStatus)) {
                 return ResponseEntity.ok("Payment not paid yet: " + paymentStatus);
             }
@@ -61,15 +68,31 @@ public class StripeWebhookController {
             Order order = orderRepository.findById(orderId)
                     .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
+            if ("PAID".equals(order.getPaymentStatus())) {
+                return ResponseEntity.ok("Order already paid: " + orderId);
+            }
+
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+
+            for (OrderItem item : orderItems) {
+                Product product = productRepository.findById(item.getProductId())
+                        .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+
+                if (product.getStock() < item.getQuantity()) {
+                    throw new RuntimeException("Not enough stock for product: " + product.getTitle());
+                }
+
+                product.setStock(product.getStock() - item.getQuantity());
+                productRepository.save(product);
+            }
+
             order.setStatus("PAID");
             order.setPaymentStatus("PAID");
             order.setStripeSessionId(sessionId);
 
             orderRepository.save(order);
 
-            System.out.println("Order updated to PAID: " + orderId);
-
-            return ResponseEntity.ok("Order updated to PAID: " + orderId);
+            return ResponseEntity.ok("Order paid and stock reduced: " + orderId);
 
         } catch (Exception e) {
             e.printStackTrace();

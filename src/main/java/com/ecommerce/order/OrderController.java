@@ -77,12 +77,6 @@ public class OrderController {
         Order savedOrder = orderRepository.save(order);
 
         for (CartItem item : cartItems) {
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found"));
-
-            product.setStock(product.getStock() - item.getQuantity());
-            productRepository.save(product);
-
             OrderItem orderItem = new OrderItem(
                     savedOrder.getId(),
                     item.getProductId(),
