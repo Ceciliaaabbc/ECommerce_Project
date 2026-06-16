@@ -2,6 +2,7 @@ package com.ecommerce.product;
 
 import jakarta.persistence.*;
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "products")
@@ -17,7 +18,8 @@ public class Product implements Serializable {
 
     private String description;
 
-    private Double price;
+    @Column(precision = 19, scale = 2)
+    private BigDecimal price;
 
     @Column(name = "image_url")
     private String imageUrl;
@@ -29,7 +31,7 @@ public class Product implements Serializable {
     public Product() {
     }
 
-    public Product(String title, String description, Double price, String imageUrl, Integer stock) {
+    public Product(String title, String description, BigDecimal price, String imageUrl, Integer stock) {
         this.title = title;
         this.description = description;
         this.price = price;
@@ -57,11 +59,11 @@ public class Product implements Serializable {
         this.description = description;
     }
 
-    public Double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
-    public void setPrice(Double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 

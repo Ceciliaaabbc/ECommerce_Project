@@ -1,6 +1,7 @@
 package com.ecommerce.cart;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "cart_items")
@@ -16,14 +17,15 @@ public class CartItem {
 
     private String title;
 
-    private Double price;
+    @Column(precision = 19, scale = 2)
+    private BigDecimal price;
 
     private Integer quantity;
 
     public CartItem() {
     }
 
-    public CartItem(String userEmail, Long productId, String title, Double price, Integer quantity) {
+    public CartItem(String userEmail, Long productId, String title, BigDecimal price, Integer quantity) {
         this.userEmail = userEmail;
         this.productId = productId;
         this.title = title;
@@ -47,7 +49,7 @@ public class CartItem {
         return title;
     }
 
-    public Double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
@@ -67,7 +69,7 @@ public class CartItem {
         this.title = title;
     }
 
-    public void setPrice(Double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 

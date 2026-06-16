@@ -1,8 +1,6 @@
 package com.ecommerce.product;
 
-import com.ecommerce.user.UserRepository;
-import com.ecommerce.security.JwtUtil;
-
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,21 +11,15 @@ import java.util.List;
 public class ProductController {
 
     private final ProductRepository productRepository;
-    private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
     private final ProductImageService productImageService;
     private final ProductCacheService productCacheService;
 
     public ProductController(
             ProductRepository productRepository,
-            UserRepository userRepository,
-            JwtUtil jwtUtil,
             ProductImageService productImageService,
             ProductCacheService productCacheService
     ) {
         this.productRepository = productRepository;
-        this.userRepository = userRepository;
-        this.jwtUtil = jwtUtil;
         this.productImageService = productImageService;
         this.productCacheService = productCacheService;
     }
@@ -70,11 +62,10 @@ public class ProductController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Product createProduct(
-            @RequestHeader("Authorization") String authHeader,
             @RequestBody Product product
     ) {
-        checkAdmin(authHeader);
 
         Product savedProduct = productRepository.save(product);
 
@@ -84,12 +75,11 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Product updateProduct(
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader,
             @RequestBody Product updatedProduct
     ) {
-        checkAdmin(authHeader);
 
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -112,11 +102,10 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public String deleteProduct(
-            @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader
+            @PathVariable Long id
     ) {
-        checkAdmin(authHeader);
 
         productRepository.deleteById(id);
 
@@ -136,12 +125,11 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/image")
+    @PreAuthorize("hasRole('ADMIN')")
     public Product uploadProductImage(
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader,
             @RequestParam("image") MultipartFile image
     ) throws Exception {
-        checkAdmin(authHeader);
 
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -157,16 +145,4 @@ public class ProductController {
         return savedProduct;
     }
 
-    private void checkAdmin(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new RuntimeException("Missing token");
-        }
-
-        String token = authHeader.substring(7);
-        String role = jwtUtil.getRoleFromToken(token);
-
-        if (!"ADMIN".equals(role)) {
-            throw new RuntimeException("Only admin can do this");
-        }
-    }
 }

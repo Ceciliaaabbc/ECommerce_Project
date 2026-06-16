@@ -1,17 +1,7 @@
 package com.ecommerce.order;
 
-import com.ecommerce.cart.CartItem;
-import com.ecommerce.cart.CartItemRepository;
-import com.ecommerce.product.Product;
-import com.ecommerce.product.ProductRepository;
-import com.ecommerce.user.User;
-import com.ecommerce.user.UserRepository;
-import com.ecommerce.security.JwtUtil;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import com.stripe.Stripe;
-import com.stripe.model.checkout.Session;
-import com.stripe.param.checkout.SessionCreateParams;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 
@@ -19,165 +9,44 @@ import java.util.List;
 @RequestMapping("/api/orders")
 public class OrderController {
 
-    private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
-    private final CartItemRepository cartItemRepository;
-    private final ProductRepository productRepository;
-    private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
+    private final OrderService orderService;
 
-    @Value("${stripe.secret-key}")
-    private String stripeSecretKey;
-
-    @Value("${frontend.url}")
-    private String frontendUrl;
-
-    public OrderController(
-            OrderRepository orderRepository,
-            OrderItemRepository orderItemRepository,
-            CartItemRepository cartItemRepository,
-            ProductRepository productRepository,
-            UserRepository userRepository, 
-            JwtUtil jwtUtil
-    ) {
-        this.orderRepository = orderRepository;
-        this.orderItemRepository = orderItemRepository;
-        this.cartItemRepository = cartItemRepository;
-        this.productRepository = productRepository;
-        this.userRepository = userRepository;
-        this.jwtUtil = jwtUtil;;
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
     }
 
-
     @PostMapping("/checkout")
-    public CheckoutResponse checkout(@RequestHeader("Authorization") String authHeader) throws Exception {
-        String token = authHeader.substring(7);
-        String userEmail = jwtUtil.getEmailFromToken(token);
-
-        List<CartItem> cartItems = cartItemRepository.findByUserEmail(userEmail);
-
-        if (cartItems.isEmpty()) {
-            throw new RuntimeException("Cart is empty");
-        }
-
-        double total = 0;
-
-        for (CartItem item : cartItems) {
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found"));
-
-            if (product.getStock() < item.getQuantity()) {
-                throw new RuntimeException("Not enough stock for product: " + product.getTitle());
-            }
-
-            total += item.getPrice() * item.getQuantity();
-        }
-
-        Order order = new Order(userEmail, total, "PENDING_PAYMENT");
-        Order savedOrder = orderRepository.save(order);
-
-        for (CartItem item : cartItems) {
-            OrderItem orderItem = new OrderItem(
-                    savedOrder.getId(),
-                    item.getProductId(),
-                    item.getTitle(),
-                    item.getPrice(),
-                    item.getQuantity()
-            );
-
-            orderItemRepository.save(orderItem);
-        }
-
-
-        Stripe.apiKey = stripeSecretKey;
-
-        SessionCreateParams params = SessionCreateParams.builder()
-                .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(frontendUrl + "/orders")
-                .setCancelUrl(frontendUrl + "/cart?payment=cancelled&orderId=" + savedOrder.getId())
-                .setClientReferenceId(savedOrder.getId().toString())
-                .addLineItem(
-                        SessionCreateParams.LineItem.builder()
-                                .setQuantity(1L)
-                                .setPriceData(
-                                        SessionCreateParams.LineItem.PriceData.builder()
-                                                .setCurrency("usd")
-                                                .setUnitAmount(Math.round(total * 100))
-                                                .setProductData(
-                                                        SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                .setName("Order #" + savedOrder.getId())
-                                                                .build()
-                                                )
-                                                .build()
-                                )
-                                .build()
-                )
-                .build();
-
-        Session session = Session.create(params);
-
-        savedOrder.setStripeSessionId(session.getId());
-        orderRepository.save(savedOrder);
-
-        return new CheckoutResponse(savedOrder.getId(), session.getUrl());
+    public CheckoutResponse checkout(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam(required = false) Long shippingAddressId
+    ) throws Exception {
+        return orderService.checkout(authHeader, shippingAddressId);
     }
 
     @GetMapping
     public List<Order> getOrders(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.substring(7);
-
-        String userEmail = jwtUtil.getEmailFromToken(token);
-        String role = jwtUtil.getRoleFromToken(token);
-
-        if ("ADMIN".equals(role)) {
-            return orderRepository.findAll();
-        }
-
-        return orderRepository.findByUserEmail(userEmail);
+        return orderService.getOrders(authHeader);
     }
-
-
 
     @GetMapping("/{orderId}/items")
     public List<OrderItem> getOrderItems(@PathVariable Long orderId) {
-        return orderItemRepository.findByOrderId(orderId);
+        return orderService.getOrderItems(orderId);
     }
 
     @PutMapping("/{orderId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public Order updateOrderStatus(
             @PathVariable Long orderId,
-            @RequestParam String status
+            @RequestParam OrderStatus status
     ) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-
-        order.setStatus(status);
-
-        return orderRepository.save(order);
+        return orderService.updateOrderStatus(orderId, status);
     }
 
-        @PutMapping("/{orderId}/cancel-payment")
-        public Order cancelPayment(
-                @PathVariable Long orderId,
-                @RequestHeader("Authorization") String authHeader
-        ) {
-            String token = authHeader.substring(7);
-            String userEmail = jwtUtil.getEmailFromToken(token);
-
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found"));
-
-            if (!order.getUserEmail().equals(userEmail)) {
-                throw new RuntimeException("You cannot cancel this order");
-            }
-
-            if ("PAID".equals(order.getPaymentStatus())) {
-                throw new RuntimeException("Paid order cannot be cancelled");
-            }
-
-            order.setStatus("CANCELLED");
-            order.setPaymentStatus("CANCELLED");
-
-            return orderRepository.save(order);
-        }
+    @PutMapping("/{orderId}/cancel-payment")
+    public Order cancelPayment(
+            @PathVariable Long orderId,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        return orderService.cancelPayment(orderId, authHeader);
+    }
 }

@@ -1,6 +1,7 @@
 package com.ecommerce.order;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -13,30 +14,30 @@ public class Order {
 
     private String userEmail;
 
-    private Double total;
+    @Column(precision = 19, scale = 2)
+    private BigDecimal total;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
 
     private LocalDateTime createdAt;
 
-    private String paymentStatus;
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus;
+
     private String stripeSessionId;
 
-    
+    private Long shippingAddressId;
 
     public Order() {
     }
 
-    public Order(String userEmail, Double total, String status) {
+    public Order(String userEmail, BigDecimal total, OrderStatus status) {
         this.userEmail = userEmail;
         this.total = total;
         this.status = status;
-        this.paymentStatus = "UNPAID";
+        this.paymentStatus = PaymentStatus.UNPAID;
         this.createdAt = LocalDateTime.now();
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 
     public Long getId() {
@@ -47,23 +48,27 @@ public class Order {
         return userEmail;
     }
 
-    public Double getTotal() {
+    public BigDecimal getTotal() {
         return total;
     }
 
-    public String getStatus() {
+    public OrderStatus getStatus() {
         return status;
+    }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
     }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public String getPaymentStatus() {
+    public PaymentStatus getPaymentStatus() {
         return paymentStatus;
     }
 
-    public void setPaymentStatus(String paymentStatus) {
+    public void setPaymentStatus(PaymentStatus paymentStatus) {
         this.paymentStatus = paymentStatus;
     }
 
@@ -73,5 +78,13 @@ public class Order {
 
     public void setStripeSessionId(String stripeSessionId) {
         this.stripeSessionId = stripeSessionId;
+    }
+
+    public Long getShippingAddressId() {
+        return shippingAddressId;
+    }
+
+    public void setShippingAddressId(Long shippingAddressId) {
+        this.shippingAddressId = shippingAddressId;
     }
 }

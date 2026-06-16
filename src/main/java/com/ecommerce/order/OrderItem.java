@@ -1,6 +1,7 @@
 package com.ecommerce.order;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "order_items")
@@ -16,14 +17,15 @@ public class OrderItem {
 
     private String title;
 
-    private Double price;
+    @Column(precision = 19, scale = 2)
+    private BigDecimal price;
 
     private Integer quantity;
 
     public OrderItem() {
     }
 
-    public OrderItem(Long orderId, Long productId, String title, Double price, Integer quantity) {
+    public OrderItem(Long orderId, Long productId, String title, BigDecimal price, Integer quantity) {
         this.orderId = orderId;
         this.productId = productId;
         this.title = title;
@@ -47,7 +49,7 @@ public class OrderItem {
         return title;
     }
 
-    public Double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
