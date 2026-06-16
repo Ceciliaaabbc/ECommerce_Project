@@ -27,7 +27,7 @@ public class ProductCacheService {
     }
 
     public Object getAllProductsFromCache() {
-        return redisTemplate.opsForValue().get(ALL_PRODUCTS_KEY);
+        return getFromCache(ALL_PRODUCTS_KEY);
     }
 
     public void cacheProduct(Product product) {
@@ -39,7 +39,7 @@ public class ProductCacheService {
     }
 
     public Object getProductFromCache(Long id) {
-        return redisTemplate.opsForValue().get(PRODUCT_DETAIL_KEY_PREFIX + id);
+        return getFromCache(PRODUCT_DETAIL_KEY_PREFIX + id);
     }
 
     public void clearAllProductsCache() {
@@ -53,5 +53,14 @@ public class ProductCacheService {
     public void clearProductCaches(Long id) {
         clearAllProductsCache();
         clearProductCache(id);
+    }
+
+    private Object getFromCache(String key) {
+        try {
+            return redisTemplate.opsForValue().get(key);
+        } catch (RuntimeException ex) {
+            redisTemplate.delete(key);
+            return null;
+        }
     }
 }
