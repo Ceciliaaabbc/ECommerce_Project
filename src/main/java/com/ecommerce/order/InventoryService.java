@@ -17,16 +17,59 @@ public class InventoryService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
-        if (product.getStock() < quantity) {
+        if (getAvailableStock(product) < quantity) {
             throw new RuntimeException("Not enough stock for product: " + product.getTitle());
         }
 
         return product;
     }
 
-    public void deductStock(Long productId, int quantity) {
-        Product product = requireEnoughStock(productId, quantity);
+    public void reserveStock(Long productId, int quantity) {
+        Product product = productRepository.findByIdForUpdate(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (getAvailableStock(product) < quantity) {
+            throw new RuntimeException("Not enough stock for product: " + product.getTitle());
+        }
+
+        product.setReservedStock(product.getReservedStock() + quantity);
+        productRepository.save(product);
+    }
+
+    public void releaseReservedStock(Long productId, int quantity) {
+        Product product = productRepository.findByIdForUpdate(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        product.setReservedStock(Math.max(0, product.getReservedStock() - quantity));
+        productRepository.save(product);
+    }
+
+    public void confirmReservedStock(Long productId, int quantity) {
+        Product product = productRepository.findByIdForUpdate(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (product.getReservedStock() < quantity) {
+            throw new RuntimeException("Reserved stock is not enough for product: " + product.getTitle());
+        }
+
+        product.setReservedStock(product.getReservedStock() - quantity);
         product.setStock(product.getStock() - quantity);
         productRepository.save(product);
+    }
+
+    public void deductStock(Long productId, int quantity) {
+        Product product = productRepository.findByIdForUpdate(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (getAvailableStock(product) < quantity) {
+            throw new RuntimeException("Not enough stock for product: " + product.getTitle());
+        }
+
+        product.setStock(product.getStock() - quantity);
+        productRepository.save(product);
+    }
+
+    private int getAvailableStock(Product product) {
+        return product.getAvailableStock();
     }
 }

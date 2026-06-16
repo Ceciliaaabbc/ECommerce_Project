@@ -26,6 +26,8 @@ public class Product implements Serializable {
 
     private Integer stock;
 
+    private Integer reservedStock = 0;
+
     private String category;
 
     public Product() {
@@ -81,6 +83,18 @@ public class Product implements Serializable {
 
     public void setStock(Integer stock) {
         this.stock = stock;
+    }
+
+    public Integer getReservedStock() {
+        return reservedStock == null ? 0 : reservedStock;
+    }
+
+    public void setReservedStock(Integer reservedStock) {
+        this.reservedStock = reservedStock;
+    }
+
+    public Integer getAvailableStock() {
+        return (stock == null ? 0 : stock) - getReservedStock();
     }
 
     public String getCategory() {

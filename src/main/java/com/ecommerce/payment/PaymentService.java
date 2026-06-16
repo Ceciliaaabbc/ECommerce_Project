@@ -86,12 +86,17 @@ public class PaymentService {
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
 
         for (OrderItem item : orderItems) {
-            inventoryService.deductStock(item.getProductId(), item.getQuantity());
+            if (order.isInventoryReserved()) {
+                inventoryService.confirmReservedStock(item.getProductId(), item.getQuantity());
+            } else {
+                inventoryService.deductStock(item.getProductId(), item.getQuantity());
+            }
         }
 
         order.setStatus(OrderStatus.PROCESSING);
         order.setPaymentStatus(PaymentStatus.PAID);
         order.setStripeSessionId(sessionId);
+        order.setInventoryReserved(false);
         orderRepository.save(order);
 
         cartItemRepository.deleteByUserEmail(order.getUserEmail());
@@ -106,12 +111,26 @@ public class PaymentService {
             return ResponseEntity.ok("Order already paid, ignore expired event: " + order.getId());
         }
 
+        releaseOrderInventory(order);
         order.setStatus(OrderStatus.CANCELLED);
         order.setPaymentStatus(PaymentStatus.EXPIRED);
         order.setStripeSessionId(sessionId);
         orderRepository.save(order);
 
         return ResponseEntity.ok("Order expired and cancelled: " + order.getId());
+    }
+
+    private void releaseOrderInventory(Order order) {
+        if (!order.isInventoryReserved()) {
+            return;
+        }
+
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+        for (OrderItem item : orderItems) {
+            inventoryService.releaseReservedStock(item.getProductId(), item.getQuantity());
+        }
+
+        order.setInventoryReserved(false);
     }
 
     private Order getOrderFromClientReference(JsonObject object) {

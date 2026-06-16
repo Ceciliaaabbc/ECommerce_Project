@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS products (
     price NUMERIC(19, 2),
     image_url TEXT,
     stock INTEGER,
+    reserved_stock INTEGER DEFAULT 0,
     category VARCHAR(255)
 );
 
@@ -41,7 +42,8 @@ CREATE TABLE IF NOT EXISTS orders (
     created_at TIMESTAMP,
     payment_status VARCHAR(50),
     stripe_session_id VARCHAR(255),
-    shipping_address_id BIGINT
+    shipping_address_id BIGINT,
+    inventory_reserved BOOLEAN DEFAULT FALSE
 );
 
 CREATE INDEX IF NOT EXISTS ix_orders_user_email ON orders (user_email);

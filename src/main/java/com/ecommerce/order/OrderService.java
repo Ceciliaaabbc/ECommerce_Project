@@ -80,7 +80,6 @@ public class OrderService {
         BigDecimal total = BigDecimal.ZERO;
 
         for (CartItem item : cartItems) {
-            inventoryService.requireEnoughStock(item.getProductId(), item.getQuantity());
             total = total.add(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         }
 
@@ -98,6 +97,7 @@ public class OrderService {
             ));
         }
 
+        reserveOrderInventory(savedOrder);
         Session session = createCheckoutSession(savedOrder, total);
         savedOrder.setStripeSessionId(session.getId());
         orderRepository.save(savedOrder);
@@ -143,8 +143,8 @@ public class OrderService {
             throw new RuntimeException("Order has no items");
         }
 
-        for (OrderItem item : orderItems) {
-            inventoryService.requireEnoughStock(item.getProductId(), item.getQuantity());
+        if (!order.isInventoryReserved()) {
+            reserveOrderInventory(order);
         }
 
         Session session = createCheckoutSession(order, order.getTotal());
@@ -179,6 +179,7 @@ public class OrderService {
             throw new RuntimeException("Paid order cannot be cancelled");
         }
 
+        releaseOrderInventory(order);
         order.setStatus(OrderStatus.CANCELLED);
         order.setPaymentStatus(PaymentStatus.CANCELLED);
         return orderRepository.save(order);
@@ -199,6 +200,7 @@ public class OrderService {
         );
 
         for (Order order : overdueOrders) {
+            releaseOrderInventory(order);
             order.setStatus(OrderStatus.CANCELLED);
             order.setPaymentStatus(PaymentStatus.EXPIRED);
         }
@@ -244,12 +246,41 @@ public class OrderService {
 
     private void applyPaymentStatusForOrderStatus(Order order, OrderStatus status) {
         if (OrderStatus.CANCELLED.equals(status) && !PaymentStatus.PAID.equals(order.getPaymentStatus())) {
+            releaseOrderInventory(order);
             order.setPaymentStatus(PaymentStatus.CANCELLED);
         }
 
         if (OrderStatus.REFUNDED.equals(status)) {
             order.setPaymentStatus(PaymentStatus.REFUNDED);
         }
+    }
+
+    private void reserveOrderInventory(Order order) {
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+        if (orderItems.isEmpty()) {
+            throw new RuntimeException("Order has no items");
+        }
+
+        for (OrderItem item : orderItems) {
+            inventoryService.reserveStock(item.getProductId(), item.getQuantity());
+        }
+
+        order.setInventoryReserved(true);
+        orderRepository.save(order);
+    }
+
+    private void releaseOrderInventory(Order order) {
+        if (!order.isInventoryReserved()) {
+            return;
+        }
+
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+        for (OrderItem item : orderItems) {
+            inventoryService.releaseReservedStock(item.getProductId(), item.getQuantity());
+        }
+
+        order.setInventoryReserved(false);
+        orderRepository.save(order);
     }
 
     private Session createCheckoutSession(Order order, BigDecimal total) throws Exception {

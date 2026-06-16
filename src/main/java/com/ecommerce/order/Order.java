@@ -29,6 +29,8 @@ public class Order {
 
     private Long shippingAddressId;
 
+    private boolean inventoryReserved;
+
     public Order() {
     }
 
@@ -86,5 +88,13 @@ public class Order {
 
     public void setShippingAddressId(Long shippingAddressId) {
         this.shippingAddressId = shippingAddressId;
+    }
+
+    public boolean isInventoryReserved() {
+        return inventoryReserved;
+    }
+
+    public void setInventoryReserved(boolean inventoryReserved) {
+        this.inventoryReserved = inventoryReserved;
     }
 }
