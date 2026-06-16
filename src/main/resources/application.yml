@@ -35,3 +35,6 @@ stripe:
 
 frontend:
   url: ${FRONTEND_URL}
+
+order:
+  expiration-minutes: ${ORDER_EXPIRATION_MINUTES:30}

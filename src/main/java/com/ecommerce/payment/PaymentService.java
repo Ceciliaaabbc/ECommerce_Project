@@ -79,6 +79,10 @@ public class PaymentService {
             return ResponseEntity.ok("Order already paid");
         }
 
+        if (PaymentStatus.EXPIRED.equals(order.getPaymentStatus()) || OrderStatus.CANCELLED.equals(order.getStatus())) {
+            return ResponseEntity.ok("Order already expired, ignore paid event: " + order.getId());
+        }
+
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
 
         for (OrderItem item : orderItems) {

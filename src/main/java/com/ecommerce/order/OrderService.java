@@ -7,11 +7,13 @@ import com.stripe.Stripe;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
@@ -48,6 +50,9 @@ public class OrderService {
 
     @Value("${frontend.url}")
     private String frontendUrl;
+
+    @Value("${order.expiration-minutes:30}")
+    private long orderExpirationMinutes;
 
     public OrderService(
             OrderRepository orderRepository,
@@ -179,6 +184,29 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
+    @Scheduled(fixedDelayString = "${order.expiration-scan-delay-ms:60000}")
+    @Transactional
+    public void expireOverdueUnpaidOrders() {
+        expireUnpaidOrdersCreatedBefore(LocalDateTime.now().minusMinutes(orderExpirationMinutes));
+    }
+
+    @Transactional
+    public int expireUnpaidOrdersCreatedBefore(LocalDateTime cutoff) {
+        List<Order> overdueOrders = orderRepository.findByStatusAndPaymentStatusAndCreatedAtBefore(
+                OrderStatus.PENDING_PAYMENT,
+                PaymentStatus.UNPAID,
+                cutoff
+        );
+
+        for (Order order : overdueOrders) {
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setPaymentStatus(PaymentStatus.EXPIRED);
+        }
+
+        orderRepository.saveAll(overdueOrders);
+        return overdueOrders.size();
+    }
+
     private long toCents(BigDecimal amount) {
         return amount.multiply(BigDecimal.valueOf(100))
                 .setScale(0, RoundingMode.HALF_UP)
@@ -231,6 +259,9 @@ public class OrderService {
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setSuccessUrl(frontendUrl + "/orders/" + order.getId())
                 .setCancelUrl(frontendUrl + "/orders/" + order.getId() + "?payment=cancelled")
+                .setExpiresAt(LocalDateTime.now().plusMinutes(orderExpirationMinutes)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toEpochSecond())
                 .setClientReferenceId(order.getId().toString())
                 .addLineItem(
                         SessionCreateParams.LineItem.builder()
