@@ -12,10 +12,30 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class OrderService {
+
+    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_STATUS_TRANSITIONS = new EnumMap<>(OrderStatus.class);
+
+    static {
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PENDING, EnumSet.of(OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELLED));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PENDING_PAYMENT, EnumSet.of(OrderStatus.PROCESSING, OrderStatus.CANCELLED));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PAID, EnumSet.of(OrderStatus.PROCESSING, OrderStatus.REFUNDING));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PROCESSING, EnumSet.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED, OrderStatus.REFUNDING));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PENDING_SHIPMENT, EnumSet.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED, OrderStatus.REFUNDING));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.SHIPPED, EnumSet.of(OrderStatus.DELIVERED, OrderStatus.REFUNDING));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.DELIVERED, EnumSet.of(OrderStatus.COMPLETED, OrderStatus.REFUNDING));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.COMPLETED, EnumSet.of(OrderStatus.REFUNDING));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.REFUNDING, EnumSet.of(OrderStatus.REFUNDED));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class));
+        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.REFUNDED, EnumSet.noneOf(OrderStatus.class));
+    }
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -134,6 +154,8 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
+        validateStatusTransition(order, status);
+        applyPaymentStatusForOrderStatus(order, status);
         order.setStatus(status);
         return orderRepository.save(order);
     }
@@ -161,6 +183,45 @@ public class OrderService {
         return amount.multiply(BigDecimal.valueOf(100))
                 .setScale(0, RoundingMode.HALF_UP)
                 .longValueExact();
+    }
+
+    private void validateStatusTransition(Order order, OrderStatus nextStatus) {
+        OrderStatus currentStatus = order.getStatus();
+
+        if (currentStatus == nextStatus) {
+            return;
+        }
+
+        Set<OrderStatus> allowedNextStatuses = ALLOWED_STATUS_TRANSITIONS.getOrDefault(
+                currentStatus,
+                EnumSet.noneOf(OrderStatus.class)
+        );
+
+        if (!allowedNextStatuses.contains(nextStatus)) {
+            throw new RuntimeException("Invalid order status transition: " + currentStatus + " -> " + nextStatus);
+        }
+
+        if (PaymentStatus.UNPAID.equals(order.getPaymentStatus()) && requiresPaidOrder(nextStatus)) {
+            throw new RuntimeException("Order must be paid before moving to " + nextStatus);
+        }
+    }
+
+    private boolean requiresPaidOrder(OrderStatus status) {
+        return OrderStatus.PROCESSING.equals(status)
+                || OrderStatus.PENDING_SHIPMENT.equals(status)
+                || OrderStatus.SHIPPED.equals(status)
+                || OrderStatus.DELIVERED.equals(status)
+                || OrderStatus.COMPLETED.equals(status);
+    }
+
+    private void applyPaymentStatusForOrderStatus(Order order, OrderStatus status) {
+        if (OrderStatus.CANCELLED.equals(status) && !PaymentStatus.PAID.equals(order.getPaymentStatus())) {
+            order.setPaymentStatus(PaymentStatus.CANCELLED);
+        }
+
+        if (OrderStatus.REFUNDED.equals(status)) {
+            order.setPaymentStatus(PaymentStatus.REFUNDED);
+        }
     }
 
     private Session createCheckoutSession(Order order, BigDecimal total) throws Exception {

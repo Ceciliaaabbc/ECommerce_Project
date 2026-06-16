@@ -85,7 +85,7 @@ public class PaymentService {
             inventoryService.deductStock(item.getProductId(), item.getQuantity());
         }
 
-        order.setStatus(OrderStatus.PAID);
+        order.setStatus(OrderStatus.PROCESSING);
         order.setPaymentStatus(PaymentStatus.PAID);
         order.setStripeSessionId(sessionId);
         orderRepository.save(order);
