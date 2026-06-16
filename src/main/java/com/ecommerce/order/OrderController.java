@@ -28,9 +28,28 @@ public class OrderController {
         return orderService.getOrders(authHeader);
     }
 
+    @GetMapping("/{orderId}")
+    public Order getOrder(
+            @PathVariable Long orderId,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        return orderService.getOrder(orderId, authHeader);
+    }
+
     @GetMapping("/{orderId}/items")
-    public List<OrderItem> getOrderItems(@PathVariable Long orderId) {
-        return orderService.getOrderItems(orderId);
+    public List<OrderItem> getOrderItems(
+            @PathVariable Long orderId,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        return orderService.getOrderItems(orderId, authHeader);
+    }
+
+    @PostMapping("/{orderId}/pay")
+    public CheckoutResponse payOrder(
+            @PathVariable Long orderId,
+            @RequestHeader("Authorization") String authHeader
+    ) throws Exception {
+        return orderService.payOrder(orderId, authHeader);
     }
 
     @PutMapping("/{orderId}/status")

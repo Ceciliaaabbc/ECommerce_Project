@@ -22,6 +22,19 @@ public class AddressController {
         return addressRepository.findByUserEmail(getEmail(authHeader));
     }
 
+    @GetMapping("/{id}")
+    public Address getAddress(@RequestHeader("Authorization") String authHeader, @PathVariable Long id) {
+        String userEmail = getEmail(authHeader);
+        Address address = addressRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+
+        if (!address.getUserEmail().equals(userEmail)) {
+            throw new RuntimeException("You cannot view this address");
+        }
+
+        return address;
+    }
+
     @PostMapping
     public Address createAddress(@RequestHeader("Authorization") String authHeader, @RequestBody Address address) {
         address.setUserEmail(getEmail(authHeader));

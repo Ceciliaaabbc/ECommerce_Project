@@ -73,32 +73,7 @@ public class OrderService {
             ));
         }
 
-        Stripe.apiKey = stripeSecretKey;
-
-        SessionCreateParams params = SessionCreateParams.builder()
-                .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(frontendUrl + "/orders")
-                .setCancelUrl(frontendUrl + "/cart?payment=cancelled&orderId=" + savedOrder.getId())
-                .setClientReferenceId(savedOrder.getId().toString())
-                .addLineItem(
-                        SessionCreateParams.LineItem.builder()
-                                .setQuantity(1L)
-                                .setPriceData(
-                                        SessionCreateParams.LineItem.PriceData.builder()
-                                                .setCurrency("usd")
-                                                .setUnitAmount(toCents(total))
-                                                .setProductData(
-                                                        SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                .setName("Order #" + savedOrder.getId())
-                                                                .build()
-                                                )
-                                                .build()
-                                )
-                                .build()
-                )
-                .build();
-
-        Session session = Session.create(params);
+        Session session = createCheckoutSession(savedOrder, total);
         savedOrder.setStripeSessionId(session.getId());
         orderRepository.save(savedOrder);
 
@@ -117,8 +92,41 @@ public class OrderService {
         return orderRepository.findByUserEmail(userEmail);
     }
 
-    public List<OrderItem> getOrderItems(Long orderId) {
+    public Order getOrder(Long orderId, String authHeader) {
+        return getOrderForCurrentUser(orderId, authHeader);
+    }
+
+    public List<OrderItem> getOrderItems(Long orderId, String authHeader) {
+        getOrderForCurrentUser(orderId, authHeader);
         return orderItemRepository.findByOrderId(orderId);
+    }
+
+    @Transactional
+    public CheckoutResponse payOrder(Long orderId, String authHeader) throws Exception {
+        Order order = getOrderForCurrentUser(orderId, authHeader);
+
+        if (PaymentStatus.PAID.equals(order.getPaymentStatus())) {
+            throw new RuntimeException("Order is already paid");
+        }
+
+        if (OrderStatus.CANCELLED.equals(order.getStatus()) || PaymentStatus.CANCELLED.equals(order.getPaymentStatus())) {
+            throw new RuntimeException("Cancelled order cannot be paid");
+        }
+
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        if (orderItems.isEmpty()) {
+            throw new RuntimeException("Order has no items");
+        }
+
+        for (OrderItem item : orderItems) {
+            inventoryService.requireEnoughStock(item.getProductId(), item.getQuantity());
+        }
+
+        Session session = createCheckoutSession(order, order.getTotal());
+        order.setStripeSessionId(session.getId());
+        orderRepository.save(order);
+
+        return new CheckoutResponse(order.getId(), session.getUrl());
     }
 
     @Transactional
@@ -153,6 +161,50 @@ public class OrderService {
         return amount.multiply(BigDecimal.valueOf(100))
                 .setScale(0, RoundingMode.HALF_UP)
                 .longValueExact();
+    }
+
+    private Session createCheckoutSession(Order order, BigDecimal total) throws Exception {
+        Stripe.apiKey = stripeSecretKey;
+
+        SessionCreateParams params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .setSuccessUrl(frontendUrl + "/orders/" + order.getId())
+                .setCancelUrl(frontendUrl + "/orders/" + order.getId() + "?payment=cancelled")
+                .setClientReferenceId(order.getId().toString())
+                .addLineItem(
+                        SessionCreateParams.LineItem.builder()
+                                .setQuantity(1L)
+                                .setPriceData(
+                                        SessionCreateParams.LineItem.PriceData.builder()
+                                                .setCurrency("usd")
+                                                .setUnitAmount(toCents(total))
+                                                .setProductData(
+                                                        SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                .setName("Order #" + order.getId())
+                                                                .build()
+                                                )
+                                                .build()
+                                )
+                                .build()
+                )
+                .build();
+
+        return Session.create(params);
+    }
+
+    private Order getOrderForCurrentUser(Long orderId, String authHeader) {
+        String token = getToken(authHeader);
+        String userEmail = jwtUtil.getEmailFromToken(token);
+        String role = jwtUtil.getRoleFromToken(token);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!"ADMIN".equals(role) && !order.getUserEmail().equals(userEmail)) {
+            throw new RuntimeException("You cannot view this order");
+        }
+
+        return order;
     }
 
     private String getEmail(String authHeader) {
