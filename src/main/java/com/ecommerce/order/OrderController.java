@@ -56,18 +56,20 @@ public class OrderController {
     @PreAuthorize("hasRole('ADMIN')")
     public Order updateOrderStatus(
             @PathVariable Long orderId,
-            @RequestParam OrderStatus status
+            @RequestParam OrderStatus status,
+            @RequestHeader("Authorization") String authHeader
     ) {
-        return orderService.updateOrderStatus(orderId, status);
+        return orderService.updateOrderStatus(orderId, status, authHeader);
     }
 
     @PostMapping("/{orderId}/ship")
     @PreAuthorize("hasRole('ADMIN')")
     public Order shipOrder(
             @PathVariable Long orderId,
-            @RequestBody ShipOrderRequest request
+            @RequestBody ShipOrderRequest request,
+            @RequestHeader("Authorization") String authHeader
     ) {
-        return orderService.shipOrder(orderId, request);
+        return orderService.shipOrder(orderId, request, authHeader);
     }
 
     @PutMapping("/{orderId}/cancel-payment")

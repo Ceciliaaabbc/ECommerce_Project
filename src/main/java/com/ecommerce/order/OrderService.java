@@ -155,7 +155,9 @@ public class OrderService {
     }
 
     @Transactional
-    public Order updateOrderStatus(Long orderId, OrderStatus status) {
+    public Order updateOrderStatus(Long orderId, OrderStatus status, String authHeader) {
+        requireAdmin(authHeader);
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
@@ -166,7 +168,9 @@ public class OrderService {
     }
 
     @Transactional
-    public Order shipOrder(Long orderId, ShipOrderRequest request) {
+    public Order shipOrder(Long orderId, ShipOrderRequest request, String authHeader) {
+        requireAdmin(authHeader);
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
@@ -360,6 +364,13 @@ public class OrderService {
 
     private String getEmail(String authHeader) {
         return jwtUtil.getEmailFromToken(getToken(authHeader));
+    }
+
+    private void requireAdmin(String authHeader) {
+        String role = jwtUtil.getRoleFromToken(getToken(authHeader));
+        if (!"ADMIN".equals(role)) {
+            throw new RuntimeException("Admin access required");
+        }
     }
 
     private String getToken(String authHeader) {
