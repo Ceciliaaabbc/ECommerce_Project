@@ -31,6 +31,12 @@ public class Order {
 
     private boolean inventoryReserved;
 
+    private String carrier;
+
+    private String trackingNumber;
+
+    private LocalDateTime shippedAt;
+
     public Order() {
     }
 
@@ -96,5 +102,29 @@ public class Order {
 
     public void setInventoryReserved(boolean inventoryReserved) {
         this.inventoryReserved = inventoryReserved;
+    }
+
+    public String getCarrier() {
+        return carrier;
+    }
+
+    public void setCarrier(String carrier) {
+        this.carrier = carrier;
+    }
+
+    public String getTrackingNumber() {
+        return trackingNumber;
+    }
+
+    public void setTrackingNumber(String trackingNumber) {
+        this.trackingNumber = trackingNumber;
+    }
+
+    public LocalDateTime getShippedAt() {
+        return shippedAt;
+    }
+
+    public void setShippedAt(LocalDateTime shippedAt) {
+        this.shippedAt = shippedAt;
     }
 }

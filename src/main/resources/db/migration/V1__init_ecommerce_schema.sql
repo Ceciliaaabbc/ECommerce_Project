@@ -43,7 +43,10 @@ CREATE TABLE IF NOT EXISTS orders (
     payment_status VARCHAR(50),
     stripe_session_id VARCHAR(255),
     shipping_address_id BIGINT,
-    inventory_reserved BOOLEAN DEFAULT FALSE
+    inventory_reserved BOOLEAN DEFAULT FALSE,
+    carrier VARCHAR(255),
+    tracking_number VARCHAR(255),
+    shipped_at TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS ix_orders_user_email ON orders (user_email);

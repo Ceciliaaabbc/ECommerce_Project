@@ -166,6 +166,34 @@ public class OrderService {
     }
 
     @Transactional
+    public Order shipOrder(Long orderId, ShipOrderRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!PaymentStatus.PAID.equals(order.getPaymentStatus())) {
+            throw new RuntimeException("Order must be paid before shipping");
+        }
+
+        if (!OrderStatus.PROCESSING.equals(order.getStatus()) && !OrderStatus.PENDING_SHIPMENT.equals(order.getStatus())) {
+            throw new RuntimeException("Only processing orders can be shipped");
+        }
+
+        if (request.getCarrier() == null || request.getCarrier().trim().isEmpty()) {
+            throw new RuntimeException("Carrier is required");
+        }
+
+        if (request.getTrackingNumber() == null || request.getTrackingNumber().trim().isEmpty()) {
+            throw new RuntimeException("Tracking number is required");
+        }
+
+        order.setCarrier(request.getCarrier().trim());
+        order.setTrackingNumber(request.getTrackingNumber().trim());
+        order.setShippedAt(LocalDateTime.now());
+        order.setStatus(OrderStatus.SHIPPED);
+        return orderRepository.save(order);
+    }
+
+    @Transactional
     public Order cancelPayment(Long orderId, String authHeader) {
         String userEmail = getEmail(authHeader);
         Order order = orderRepository.findById(orderId)

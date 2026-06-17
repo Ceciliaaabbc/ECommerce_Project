@@ -61,6 +61,15 @@ public class OrderController {
         return orderService.updateOrderStatus(orderId, status);
     }
 
+    @PostMapping("/{orderId}/ship")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Order shipOrder(
+            @PathVariable Long orderId,
+            @RequestBody ShipOrderRequest request
+    ) {
+        return orderService.shipOrder(orderId, request);
+    }
+
     @PutMapping("/{orderId}/cancel-payment")
     public Order cancelPayment(
             @PathVariable Long orderId,
