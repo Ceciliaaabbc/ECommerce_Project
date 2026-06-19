@@ -57,7 +57,7 @@ public class OrderController {
         );
     }
 
-    @GetMapping("/{orderId}")
+    @GetMapping("/{orderId:\\d+}")
     public Order getOrder(
             @PathVariable Long orderId,
             @RequestHeader("Authorization") String authHeader
@@ -65,7 +65,7 @@ public class OrderController {
         return orderService.getOrder(orderId, authHeader);
     }
 
-    @GetMapping("/{orderId}/items")
+    @GetMapping("/{orderId:\\d+}/items")
     public List<OrderItem> getOrderItems(
             @PathVariable Long orderId,
             @RequestHeader("Authorization") String authHeader
@@ -73,7 +73,7 @@ public class OrderController {
         return orderService.getOrderItems(orderId, authHeader);
     }
 
-    @PostMapping("/{orderId}/pay")
+    @PostMapping("/{orderId:\\d+}/pay")
     public CheckoutResponse payOrder(
             @PathVariable Long orderId,
             @RequestHeader("Authorization") String authHeader
@@ -81,7 +81,7 @@ public class OrderController {
         return orderService.payOrder(orderId, authHeader);
     }
 
-    @PutMapping("/{orderId}/status")
+    @PutMapping("/{orderId:\\d+}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public Order updateOrderStatus(
             @PathVariable Long orderId,
@@ -91,7 +91,7 @@ public class OrderController {
         return orderService.updateOrderStatus(orderId, status, authHeader);
     }
 
-    @PostMapping("/{orderId}/ship")
+    @PostMapping("/{orderId:\\d+}/ship")
     @PreAuthorize("hasRole('ADMIN')")
     public Order shipOrder(
             @PathVariable Long orderId,
@@ -101,7 +101,7 @@ public class OrderController {
         return orderService.shipOrder(orderId, request, authHeader);
     }
 
-    @PutMapping("/{orderId}/cancel-payment")
+    @PutMapping("/{orderId:\\d+}/cancel-payment")
     public Order cancelPayment(
             @PathVariable Long orderId,
             @RequestHeader("Authorization") String authHeader

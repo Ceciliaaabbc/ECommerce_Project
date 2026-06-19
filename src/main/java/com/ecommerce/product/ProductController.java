@@ -94,7 +94,7 @@ public class ProductController {
         return productRepository.findAll(specification, pageable);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public Object getProductById(@PathVariable Long id) {
         Object cachedProduct = productCacheService.getProductFromCache(id);
 
@@ -126,7 +126,7 @@ public class ProductController {
         return savedProduct;
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     @PreAuthorize("hasRole('ADMIN')")
     public Product updateProduct(
             @PathVariable Long id,
@@ -153,7 +153,7 @@ public class ProductController {
         return savedProduct;
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     @PreAuthorize("hasRole('ADMIN')")
     public String deleteProduct(
             @PathVariable Long id
@@ -176,7 +176,7 @@ public class ProductController {
         return productRepository.findByCategoryIgnoreCase(category);
     }
 
-    @PostMapping("/{id}/image")
+    @PostMapping("/{id:\\d+}/image")
     @PreAuthorize("hasRole('ADMIN')")
     public Product uploadProductImage(
             @PathVariable Long id,
