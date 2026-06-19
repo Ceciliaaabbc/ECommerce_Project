@@ -1,7 +1,5 @@
 package com.ecommerce.order;
 
-import com.ecommerce.address.Address;
-import com.ecommerce.address.AddressRepository;
 import com.ecommerce.cart.CartItem;
 import com.ecommerce.cart.CartItemRepository;
 import com.ecommerce.security.JwtUtil;
@@ -24,9 +22,9 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final CartItemRepository cartItemRepository;
-    private final AddressRepository addressRepository;
     private final InventoryService inventoryService;
     private final OrderStateMachine orderStateMachine;
+    private final OrderAddressSnapshotService orderAddressSnapshotService;
     private final JwtUtil jwtUtil;
 
     @Value("${stripe.secret-key}")
@@ -42,17 +40,17 @@ public class OrderService {
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             CartItemRepository cartItemRepository,
-            AddressRepository addressRepository,
             InventoryService inventoryService,
             OrderStateMachine orderStateMachine,
+            OrderAddressSnapshotService orderAddressSnapshotService,
             JwtUtil jwtUtil
     ) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartItemRepository = cartItemRepository;
-        this.addressRepository = addressRepository;
         this.inventoryService = inventoryService;
         this.orderStateMachine = orderStateMachine;
+        this.orderAddressSnapshotService = orderAddressSnapshotService;
         this.jwtUtil = jwtUtil;
     }
 
@@ -72,7 +70,7 @@ public class OrderService {
         }
 
         Order order = new Order(userEmail, total, OrderStatus.PENDING_PAYMENT);
-        applyShippingAddressSnapshot(order, shippingAddressId, userEmail);
+        orderAddressSnapshotService.applyShippingAddressSnapshot(order, shippingAddressId, userEmail);
         Order savedOrder = orderRepository.save(order);
 
         for (CartItem item : cartItems) {
@@ -235,28 +233,6 @@ public class OrderService {
         return amount.multiply(BigDecimal.valueOf(100))
                 .setScale(0, RoundingMode.HALF_UP)
                 .longValueExact();
-    }
-
-    private void applyShippingAddressSnapshot(Order order, Long shippingAddressId, String userEmail) {
-        if (shippingAddressId == null) {
-            throw new RuntimeException("Shipping address is required");
-        }
-
-        Address address = addressRepository.findById(shippingAddressId)
-                .orElseThrow(() -> new RuntimeException("Address not found"));
-
-        if (!address.getUserEmail().equals(userEmail)) {
-            throw new RuntimeException("You cannot use this shipping address");
-        }
-
-        order.setShippingAddressId(address.getId());
-        order.setShippingRecipientName(address.getRecipientName());
-        order.setShippingPhone(address.getPhone());
-        order.setShippingCountry(address.getCountry());
-        order.setShippingProvince(address.getProvince());
-        order.setShippingCity(address.getCity());
-        order.setShippingStreet(address.getStreet());
-        order.setShippingPostalCode(address.getPostalCode());
     }
 
     private void reserveOrderInventory(Order order) {
