@@ -258,6 +258,22 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
+    @Transactional
+    public Order refundOrder(Long orderId, String authHeader) {
+        requireAdmin(authHeader);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!PaymentStatus.PAID.equals(order.getPaymentStatus())) {
+            throw new RuntimeException("Only paid orders can be refunded");
+        }
+
+        order.setStatus(OrderStatus.REFUNDED);
+        order.setPaymentStatus(PaymentStatus.REFUNDED);
+        return orderRepository.save(order);
+    }
+
     @Scheduled(fixedDelayString = "${order.expiration-scan-delay-ms:60000}")
     @Transactional
     public void expireOverdueUnpaidOrders() {

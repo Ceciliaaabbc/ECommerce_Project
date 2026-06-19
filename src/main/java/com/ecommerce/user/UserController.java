@@ -1,5 +1,6 @@
 package com.ecommerce.user;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import com.ecommerce.security.JwtUtil;
@@ -59,11 +60,13 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public User getUserById(@PathVariable Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -71,6 +74,7 @@ public class UserController {
 
     // PUT /api/users/1/make-admin
     @PutMapping("/{id}/make-admin")
+    @PreAuthorize("hasRole('ADMIN')")
     public User makeAdmin(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
