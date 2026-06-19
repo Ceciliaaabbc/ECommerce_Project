@@ -45,6 +45,7 @@ public class ProductController {
         System.out.println("Redis cache miss: all products");
 
         List<Product> products = productRepository.findAll();
+        products.forEach(this::initializeProductChildren);
         productCacheService.cacheAllProducts(products);
 
         return products;
@@ -107,6 +108,7 @@ public class ProductController {
 
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
+        initializeProductChildren(product);
 
         productCacheService.cacheProduct(product);
 
@@ -119,6 +121,7 @@ public class ProductController {
             @RequestBody Product product
     ) {
 
+        normalizeProductChildren(product);
         Product savedProduct = productRepository.save(product);
 
         productCacheService.clearAllProductsCache();
@@ -141,10 +144,10 @@ public class ProductController {
         product.setDescription(updatedProduct.getDescription());
         product.setPrice(updatedProduct.getPrice());
         product.setStock(updatedProduct.getStock());
-
-        if (updatedProduct.getImageUrl() != null && !updatedProduct.getImageUrl().isBlank()) {
-            product.setImageUrl(updatedProduct.getImageUrl());
-        }
+        product.setImageUrl(updatedProduct.getImageUrl());
+        product.setVariants(updatedProduct.getVariants());
+        product.setImages(updatedProduct.getImages());
+        normalizeProductChildren(product);
 
         Product savedProduct = productRepository.save(product);
 
@@ -188,7 +191,15 @@ public class ProductController {
 
         String imageUrl = productImageService.uploadProductImage(image);
 
-        product.setImageUrl(imageUrl);
+        ProductImage productImage = new ProductImage();
+        productImage.setImageUrl(imageUrl);
+        productImage.setSortOrder(product.getImages().size());
+        productImage.setPrimaryImage(product.getImages().isEmpty());
+        product.addImage(productImage);
+        if (product.getImageUrl() == null || product.getImageUrl().isBlank()) {
+            product.setImageUrl(imageUrl);
+        }
+        normalizeProductChildren(product);
 
         Product savedProduct = productRepository.save(product);
 
@@ -197,6 +208,42 @@ public class ProductController {
         return savedProduct;
     }
 
+
+    private void initializeProductChildren(Product product) {
+        product.getImages().size();
+        product.getVariants().size();
+    }
+
+    private void normalizeProductChildren(Product product) {
+        List<ProductImage> images = product.getImages();
+        boolean hasPrimaryImage = images.stream().anyMatch(image -> Boolean.TRUE.equals(image.getPrimaryImage()));
+        for (int index = 0; index < images.size(); index++) {
+            ProductImage image = images.get(index);
+            image.setProduct(product);
+            if (image.getSortOrder() == null) {
+                image.setSortOrder(index);
+            }
+            if (!hasPrimaryImage && index == 0) {
+                image.setPrimaryImage(true);
+            }
+        }
+
+        product.getVariants().forEach(variant -> {
+            variant.setProduct(product);
+            if (variant.getSku() != null && variant.getSku().isBlank()) {
+                variant.setSku(null);
+            }
+            if (variant.getActive() == null) {
+                variant.setActive(true);
+            }
+        });
+
+        product.getImages().stream()
+                .filter(image -> Boolean.TRUE.equals(image.getPrimaryImage()))
+                .findFirst()
+                .map(ProductImage::getImageUrl)
+                .ifPresent(product::setImageUrl);
+    }
 
     private Sort getProductSort(String sort) {
         return switch (sort) {

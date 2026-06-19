@@ -15,6 +15,12 @@ public class CartItem {
 
     private Long productId;
 
+    private Long variantId;
+
+    private String sku;
+
+    private String variantName;
+
     private String title;
 
     @Column(precision = 19, scale = 2)
@@ -45,6 +51,18 @@ public class CartItem {
         return productId;
     }
 
+    public Long getVariantId() {
+        return variantId;
+    }
+
+    public String getSku() {
+        return sku;
+    }
+
+    public String getVariantName() {
+        return variantName;
+    }
+
     public String getTitle() {
         return title;
     }
@@ -63,6 +81,18 @@ public class CartItem {
 
     public void setProductId(Long productId) {
         this.productId = productId;
+    }
+
+    public void setVariantId(Long variantId) {
+        this.variantId = variantId;
+    }
+
+    public void setSku(String sku) {
+        this.sku = sku;
+    }
+
+    public void setVariantName(String variantName) {
+        this.variantName = variantName;
     }
 
     public void setTitle(String title) {
