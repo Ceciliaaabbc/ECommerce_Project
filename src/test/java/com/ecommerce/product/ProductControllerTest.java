@@ -2,13 +2,20 @@ package com.ecommerce.product;
 
 import com.ecommerce.security.JwtUtil;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -71,6 +78,30 @@ class ProductControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("MacBook"));
+    }
+
+    @Test
+    void browseProducts_shouldApplyPriceDescSort() throws Exception {
+        Product expensive = new Product("iPad", "Tablet", new java.math.BigDecimal("7999.00"), "ipad.jpg", 10);
+        Product cheap = new Product("Switch", "Console", new java.math.BigDecimal("4999.00"), "switch.jpg", 10);
+
+        when(productRepository.findAll(any(Specification.class), org.mockito.ArgumentMatchers.<Pageable>any()))
+                .thenReturn(new PageImpl<>(List.of(expensive, cheap)));
+
+        mockMvc.perform(get("/api/products/browse")
+                        .param("sort", "priceDesc")
+                        .param("page", "0")
+                        .param("size", "12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].title").value("iPad"));
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(productRepository).findAll(any(Specification.class), pageableCaptor.capture());
+
+        Sort.Order priceOrder = pageableCaptor.getValue().getSort().getOrderFor("price");
+        Sort.Order idOrder = pageableCaptor.getValue().getSort().getOrderFor("id");
+        assertEquals(Sort.Direction.DESC, priceOrder.getDirection());
+        assertEquals(Sort.Direction.DESC, idOrder.getDirection());
     }
 
 }

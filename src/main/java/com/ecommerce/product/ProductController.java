@@ -200,10 +200,10 @@ public class ProductController {
 
     private Sort getProductSort(String sort) {
         return switch (sort) {
-            case "priceAsc" -> Sort.by(Sort.Direction.ASC, "price");
-            case "priceDesc" -> Sort.by(Sort.Direction.DESC, "price");
-            case "titleAsc" -> Sort.by(Sort.Direction.ASC, "title");
-            case "stockDesc" -> Sort.by(Sort.Direction.DESC, "stock");
+            case "priceAsc" -> Sort.by(Sort.Direction.ASC, "price").and(Sort.by(Sort.Direction.ASC, "id"));
+            case "priceDesc" -> Sort.by(Sort.Direction.DESC, "price").and(Sort.by(Sort.Direction.DESC, "id"));
+            case "titleAsc" -> Sort.by(Sort.Direction.ASC, "title").and(Sort.by(Sort.Direction.ASC, "id"));
+            case "stockDesc" -> Sort.by(Sort.Direction.DESC, "stock").and(Sort.by(Sort.Direction.DESC, "id"));
             default -> Sort.by(Sort.Direction.DESC, "id");
         };
     }
