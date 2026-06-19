@@ -1,5 +1,7 @@
 package com.ecommerce.order;
 
+import com.ecommerce.address.Address;
+import com.ecommerce.address.AddressRepository;
 import com.ecommerce.cart.CartItem;
 import com.ecommerce.cart.CartItemRepository;
 import com.ecommerce.security.JwtUtil;
@@ -14,35 +16,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 @Service
 public class OrderService {
 
-    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_STATUS_TRANSITIONS = new EnumMap<>(OrderStatus.class);
-
-    static {
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PENDING, EnumSet.of(OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELLED));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PENDING_PAYMENT, EnumSet.of(OrderStatus.PROCESSING, OrderStatus.CANCELLED));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PAID, EnumSet.of(OrderStatus.PROCESSING, OrderStatus.REFUNDING));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PROCESSING, EnumSet.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED, OrderStatus.REFUNDING));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.PENDING_SHIPMENT, EnumSet.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED, OrderStatus.REFUNDING));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.SHIPPED, EnumSet.of(OrderStatus.DELIVERED, OrderStatus.REFUNDING));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.DELIVERED, EnumSet.of(OrderStatus.COMPLETED, OrderStatus.REFUNDING));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.COMPLETED, EnumSet.of(OrderStatus.REFUNDING));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.REFUNDING, EnumSet.of(OrderStatus.REFUNDED));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class));
-        ALLOWED_STATUS_TRANSITIONS.put(OrderStatus.REFUNDED, EnumSet.noneOf(OrderStatus.class));
-    }
-
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final CartItemRepository cartItemRepository;
+    private final AddressRepository addressRepository;
     private final InventoryService inventoryService;
+    private final OrderStateMachine orderStateMachine;
     private final JwtUtil jwtUtil;
 
     @Value("${stripe.secret-key}")
@@ -58,13 +42,17 @@ public class OrderService {
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             CartItemRepository cartItemRepository,
+            AddressRepository addressRepository,
             InventoryService inventoryService,
+            OrderStateMachine orderStateMachine,
             JwtUtil jwtUtil
     ) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartItemRepository = cartItemRepository;
+        this.addressRepository = addressRepository;
         this.inventoryService = inventoryService;
+        this.orderStateMachine = orderStateMachine;
         this.jwtUtil = jwtUtil;
     }
 
@@ -84,7 +72,7 @@ public class OrderService {
         }
 
         Order order = new Order(userEmail, total, OrderStatus.PENDING_PAYMENT);
-        order.setShippingAddressId(shippingAddressId);
+        applyShippingAddressSnapshot(order, shippingAddressId, userEmail);
         Order savedOrder = orderRepository.save(order);
 
         for (CartItem item : cartItems) {
@@ -161,9 +149,11 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        validateStatusTransition(order, status);
-        applyPaymentStatusForOrderStatus(order, status);
-        order.setStatus(status);
+        orderStateMachine.validateTransition(order, status);
+        if (OrderStatus.CANCELLED.equals(status) && !PaymentStatus.PAID.equals(order.getPaymentStatus())) {
+            releaseOrderInventory(order);
+        }
+        orderStateMachine.applyTransition(order, status);
         return orderRepository.save(order);
     }
 
@@ -193,7 +183,7 @@ public class OrderService {
         order.setCarrier(request.getCarrier().trim());
         order.setTrackingNumber(request.getTrackingNumber().trim());
         order.setShippedAt(LocalDateTime.now());
-        order.setStatus(OrderStatus.SHIPPED);
+        orderStateMachine.applyTransition(order, OrderStatus.SHIPPED);
         return orderRepository.save(order);
     }
 
@@ -247,44 +237,26 @@ public class OrderService {
                 .longValueExact();
     }
 
-    private void validateStatusTransition(Order order, OrderStatus nextStatus) {
-        OrderStatus currentStatus = order.getStatus();
-
-        if (currentStatus == nextStatus) {
-            return;
+    private void applyShippingAddressSnapshot(Order order, Long shippingAddressId, String userEmail) {
+        if (shippingAddressId == null) {
+            throw new RuntimeException("Shipping address is required");
         }
 
-        Set<OrderStatus> allowedNextStatuses = ALLOWED_STATUS_TRANSITIONS.getOrDefault(
-                currentStatus,
-                EnumSet.noneOf(OrderStatus.class)
-        );
+        Address address = addressRepository.findById(shippingAddressId)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
 
-        if (!allowedNextStatuses.contains(nextStatus)) {
-            throw new RuntimeException("Invalid order status transition: " + currentStatus + " -> " + nextStatus);
+        if (!address.getUserEmail().equals(userEmail)) {
+            throw new RuntimeException("You cannot use this shipping address");
         }
 
-        if (PaymentStatus.UNPAID.equals(order.getPaymentStatus()) && requiresPaidOrder(nextStatus)) {
-            throw new RuntimeException("Order must be paid before moving to " + nextStatus);
-        }
-    }
-
-    private boolean requiresPaidOrder(OrderStatus status) {
-        return OrderStatus.PROCESSING.equals(status)
-                || OrderStatus.PENDING_SHIPMENT.equals(status)
-                || OrderStatus.SHIPPED.equals(status)
-                || OrderStatus.DELIVERED.equals(status)
-                || OrderStatus.COMPLETED.equals(status);
-    }
-
-    private void applyPaymentStatusForOrderStatus(Order order, OrderStatus status) {
-        if (OrderStatus.CANCELLED.equals(status) && !PaymentStatus.PAID.equals(order.getPaymentStatus())) {
-            releaseOrderInventory(order);
-            order.setPaymentStatus(PaymentStatus.CANCELLED);
-        }
-
-        if (OrderStatus.REFUNDED.equals(status)) {
-            order.setPaymentStatus(PaymentStatus.REFUNDED);
-        }
+        order.setShippingAddressId(address.getId());
+        order.setShippingRecipientName(address.getRecipientName());
+        order.setShippingPhone(address.getPhone());
+        order.setShippingCountry(address.getCountry());
+        order.setShippingProvince(address.getProvince());
+        order.setShippingCity(address.getCity());
+        order.setShippingStreet(address.getStreet());
+        order.setShippingPostalCode(address.getPostalCode());
     }
 
     private void reserveOrderInventory(Order order) {

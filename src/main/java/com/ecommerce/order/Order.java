@@ -29,6 +29,21 @@ public class Order {
 
     private Long shippingAddressId;
 
+    private String shippingRecipientName;
+
+    private String shippingPhone;
+
+    private String shippingCountry;
+
+    private String shippingProvince;
+
+    private String shippingCity;
+
+    @Column(columnDefinition = "TEXT")
+    private String shippingStreet;
+
+    private String shippingPostalCode;
+
     private boolean inventoryReserved;
 
     private String carrier;
@@ -94,6 +109,62 @@ public class Order {
 
     public void setShippingAddressId(Long shippingAddressId) {
         this.shippingAddressId = shippingAddressId;
+    }
+
+    public String getShippingRecipientName() {
+        return shippingRecipientName;
+    }
+
+    public void setShippingRecipientName(String shippingRecipientName) {
+        this.shippingRecipientName = shippingRecipientName;
+    }
+
+    public String getShippingPhone() {
+        return shippingPhone;
+    }
+
+    public void setShippingPhone(String shippingPhone) {
+        this.shippingPhone = shippingPhone;
+    }
+
+    public String getShippingCountry() {
+        return shippingCountry;
+    }
+
+    public void setShippingCountry(String shippingCountry) {
+        this.shippingCountry = shippingCountry;
+    }
+
+    public String getShippingProvince() {
+        return shippingProvince;
+    }
+
+    public void setShippingProvince(String shippingProvince) {
+        this.shippingProvince = shippingProvince;
+    }
+
+    public String getShippingCity() {
+        return shippingCity;
+    }
+
+    public void setShippingCity(String shippingCity) {
+        this.shippingCity = shippingCity;
+    }
+
+    public String getShippingStreet() {
+        return shippingStreet;
+    }
+
+    public void setShippingStreet(String shippingStreet) {
+        this.shippingStreet = shippingStreet;
+    }
+
+    public String getShippingPostalCode() {
+        return shippingPostalCode;
+    }
+
+    public void setShippingPostalCode(String shippingPostalCode) {
+        this.shippingPostalCode = shippingPostalCode;
     }
 
     public boolean isInventoryReserved() {
