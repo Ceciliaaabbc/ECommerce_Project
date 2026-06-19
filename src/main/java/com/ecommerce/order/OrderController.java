@@ -3,6 +3,10 @@ package com.ecommerce.order;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.Page;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -26,6 +30,31 @@ public class OrderController {
     @GetMapping
     public List<Order> getOrders(@RequestHeader("Authorization") String authHeader) {
         return orderService.getOrders(authHeader);
+    }
+
+
+    @GetMapping("/admin/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Page<Order> searchAdminOrders(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) PaymentStatus paymentStatus,
+            @RequestParam(required = false) String userEmail,
+            @RequestParam(required = false) String createdFrom,
+            @RequestParam(required = false) String createdTo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return orderService.searchAdminOrders(
+                authHeader,
+                status,
+                paymentStatus,
+                userEmail,
+                parseStartOfDay(createdFrom),
+                parseEndOfDay(createdTo),
+                page,
+                size
+        );
     }
 
     @GetMapping("/{orderId}")
@@ -79,4 +108,18 @@ public class OrderController {
     ) {
         return orderService.cancelPayment(orderId, authHeader);
     }
+    private LocalDateTime parseStartOfDay(String date) {
+        if (date == null || date.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(date).atStartOfDay();
+    }
+
+    private LocalDateTime parseEndOfDay(String date) {
+        if (date == null || date.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(date).plusDays(1).atStartOfDay().minusNanos(1);
+    }
+
 }

@@ -1,9 +1,17 @@
 package com.ecommerce.product;
 
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -40,6 +48,50 @@ public class ProductController {
         productCacheService.cacheAllProducts(products);
 
         return products;
+    }
+
+
+    @GetMapping("/browse")
+    public Page<Product> browseProducts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(defaultValue = "createdDesc") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 50);
+
+        Specification<Product> specification = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (keyword != null && !keyword.isBlank()) {
+                String likeKeyword = "%" + keyword.trim().toLowerCase() + "%";
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), likeKeyword),
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), likeKeyword)
+                ));
+            }
+
+            if (category != null && !category.isBlank()) {
+                predicates.add(criteriaBuilder.equal(criteriaBuilder.lower(root.get("category")), category.trim().toLowerCase()));
+            }
+
+            if (minPrice != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("price"), minPrice));
+            }
+
+            if (maxPrice != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("price"), maxPrice));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Pageable pageable = PageRequest.of(safePage, safeSize, getProductSort(sort));
+        return productRepository.findAll(specification, pageable);
     }
 
     @GetMapping("/{id}")
@@ -143,6 +195,17 @@ public class ProductController {
         productCacheService.clearProductCaches(id);
 
         return savedProduct;
+    }
+
+
+    private Sort getProductSort(String sort) {
+        return switch (sort) {
+            case "priceAsc" -> Sort.by(Sort.Direction.ASC, "price");
+            case "priceDesc" -> Sort.by(Sort.Direction.DESC, "price");
+            case "titleAsc" -> Sort.by(Sort.Direction.ASC, "title");
+            case "stockDesc" -> Sort.by(Sort.Direction.DESC, "stock");
+            default -> Sort.by(Sort.Direction.DESC, "id");
+        };
     }
 
 }

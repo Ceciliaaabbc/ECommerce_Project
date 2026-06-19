@@ -3,10 +3,16 @@ package com.ecommerce.order;
 import com.ecommerce.cart.CartItem;
 import com.ecommerce.cart.CartItemRepository;
 import com.ecommerce.security.JwtUtil;
+import jakarta.persistence.criteria.Predicate;
 import com.stripe.Stripe;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -101,6 +108,52 @@ public class OrderService {
         }
 
         return orderRepository.findByUserEmail(userEmail);
+    }
+
+
+    public Page<Order> searchAdminOrders(
+            String authHeader,
+            OrderStatus status,
+            PaymentStatus paymentStatus,
+            String userEmail,
+            LocalDateTime createdFrom,
+            LocalDateTime createdTo,
+            int page,
+            int size
+    ) {
+        requireAdmin(authHeader);
+
+        Specification<Order> specification = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            }
+
+            if (paymentStatus != null) {
+                predicates.add(criteriaBuilder.equal(root.get("paymentStatus"), paymentStatus));
+            }
+
+            if (userEmail != null && !userEmail.isBlank()) {
+                predicates.add(criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("userEmail")),
+                        "%" + userEmail.trim().toLowerCase() + "%"
+                ));
+            }
+
+            if (createdFrom != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), createdFrom));
+            }
+
+            if (createdTo != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), createdTo));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by(Sort.Direction.DESC, "createdAt"));
+        return orderRepository.findAll(specification, pageable);
     }
 
     public Order getOrder(Long orderId, String authHeader) {
