@@ -52,19 +52,6 @@ public class CartController {
         return addOrIncrementCartItem(userEmail, cartItem);
     }
 
-    @PostMapping("/merge")
-    @Transactional
-    public List<CartItem> mergeGuestCart(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody List<CartItem> guestItems
-    ) {
-        String userEmail = getEmail(authHeader);
-        for (CartItem guestItem : guestItems) {
-            addOrIncrementCartItem(userEmail, guestItem);
-        }
-        return cartItemRepository.findByUserEmail(userEmail);
-    }
-
     private CartItem addOrIncrementCartItem(String userEmail, CartItem cartItem) {
         cartItem.setUserEmail(userEmail);
 
