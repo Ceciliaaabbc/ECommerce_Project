@@ -87,9 +87,9 @@ public class PaymentService {
 
         for (OrderItem item : orderItems) {
             if (order.isInventoryReserved()) {
-                inventoryService.confirmReservedStock(item.getProductId(), item.getQuantity());
+                inventoryService.confirmReservedStock(item.getProductId(), item.getVariantId(), item.getQuantity());
             } else {
-                inventoryService.deductStock(item.getProductId(), item.getQuantity());
+                inventoryService.deductStock(item.getProductId(), item.getVariantId(), item.getQuantity());
             }
         }
 
@@ -127,7 +127,7 @@ public class PaymentService {
 
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
         for (OrderItem item : orderItems) {
-            inventoryService.releaseReservedStock(item.getProductId(), item.getQuantity());
+            inventoryService.releaseReservedStock(item.getProductId(), item.getVariantId(), item.getQuantity());
         }
 
         order.setInventoryReserved(false);

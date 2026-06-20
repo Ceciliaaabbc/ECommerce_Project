@@ -32,6 +32,8 @@ public class ProductVariant implements Serializable {
 
     private Integer stock;
 
+    private Integer reservedStock = 0;
+
     private Boolean active = true;
 
     public Long getId() {
@@ -86,6 +88,14 @@ public class ProductVariant implements Serializable {
         this.stock = stock;
     }
 
+    public Integer getReservedStock() {
+        return reservedStock == null ? 0 : reservedStock;
+    }
+
+    public void setReservedStock(Integer reservedStock) {
+        this.reservedStock = reservedStock;
+    }
+
     public Boolean getActive() {
         return active;
     }
@@ -95,6 +105,6 @@ public class ProductVariant implements Serializable {
     }
 
     public Integer getAvailableStock() {
-        return stock == null ? 0 : stock;
+        return (stock == null ? 0 : stock) - getReservedStock();
     }
 }

@@ -53,7 +53,7 @@ class OrderServiceExpirationTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.EXPIRED);
         assertThat(order.isInventoryReserved()).isFalse();
-        verify(inventoryService).releaseReservedStock(5L, 2);
+        verify(inventoryService).releaseReservedStock(5L, null, 2);
         verify(orderRepository).saveAll(List.of(order));
     }
 }

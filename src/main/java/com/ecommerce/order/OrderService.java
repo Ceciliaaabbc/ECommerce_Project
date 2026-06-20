@@ -73,6 +73,7 @@ public class OrderService {
         BigDecimal total = BigDecimal.ZERO;
 
         for (CartItem item : cartItems) {
+            inventoryService.requireEnoughStock(item.getProductId(), item.getVariantId(), item.getQuantity());
             total = total.add(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         }
 
@@ -84,6 +85,9 @@ public class OrderService {
             orderItemRepository.save(new OrderItem(
                     savedOrder.getId(),
                     item.getProductId(),
+                    item.getVariantId(),
+                    item.getSku(),
+                    item.getVariantName(),
                     item.getTitle(),
                     item.getPrice(),
                     item.getQuantity()
@@ -311,7 +315,7 @@ public class OrderService {
         }
 
         for (OrderItem item : orderItems) {
-            inventoryService.reserveStock(item.getProductId(), item.getQuantity());
+            inventoryService.reserveStock(item.getProductId(), item.getVariantId(), item.getQuantity());
         }
 
         order.setInventoryReserved(true);
@@ -325,7 +329,7 @@ public class OrderService {
 
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
         for (OrderItem item : orderItems) {
-            inventoryService.releaseReservedStock(item.getProductId(), item.getQuantity());
+            inventoryService.releaseReservedStock(item.getProductId(), item.getVariantId(), item.getQuantity());
         }
 
         order.setInventoryReserved(false);

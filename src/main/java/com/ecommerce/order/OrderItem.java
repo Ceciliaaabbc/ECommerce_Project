@@ -15,6 +15,12 @@ public class OrderItem {
 
     private Long productId;
 
+    private Long variantId;
+
+    private String sku;
+
+    private String variantName;
+
     private String title;
 
     @Column(precision = 19, scale = 2)
@@ -26,8 +32,24 @@ public class OrderItem {
     }
 
     public OrderItem(Long orderId, Long productId, String title, BigDecimal price, Integer quantity) {
+        this(orderId, productId, null, null, null, title, price, quantity);
+    }
+
+    public OrderItem(
+            Long orderId,
+            Long productId,
+            Long variantId,
+            String sku,
+            String variantName,
+            String title,
+            BigDecimal price,
+            Integer quantity
+    ) {
         this.orderId = orderId;
         this.productId = productId;
+        this.variantId = variantId;
+        this.sku = sku;
+        this.variantName = variantName;
         this.title = title;
         this.price = price;
         this.quantity = quantity;
@@ -43,6 +65,18 @@ public class OrderItem {
 
     public Long getProductId() {
         return productId;
+    }
+
+    public Long getVariantId() {
+        return variantId;
+    }
+
+    public String getSku() {
+        return sku;
+    }
+
+    public String getVariantName() {
+        return variantName;
     }
 
     public String getTitle() {
