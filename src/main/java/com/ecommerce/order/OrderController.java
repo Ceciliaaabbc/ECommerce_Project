@@ -108,6 +108,16 @@ public class OrderController {
     ) {
         return orderService.cancelPayment(orderId, authHeader);
     }
+
+    @PostMapping("/{orderId:\\d+}/refund")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Order refundOrder(
+            @PathVariable Long orderId,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        return orderService.refundOrder(orderId, authHeader);
+    }
+
     private LocalDateTime parseStartOfDay(String date) {
         if (date == null || date.isBlank()) {
             return null;

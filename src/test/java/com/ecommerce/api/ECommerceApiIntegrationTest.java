@@ -21,6 +21,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -56,6 +57,9 @@ class ECommerceApiIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     private CartItemRepository cartItemRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void registerLoginAddToCartAndCheckout_shouldCreatePendingOrderAndReserveInventory() throws Exception {
@@ -146,6 +150,24 @@ class ECommerceApiIntegrationTest extends PostgresIntegrationTest {
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Order is already paid"));
+    }
+
+    @Test
+    void adminRefund_shouldMarkPaidOrderRefunded() throws Exception {
+        Product product = productRepository.saveAndFlush(product("Refund Item", 3));
+        String adminToken = registerAndLogin("admin@example.com", "password123");
+        promoteUserToAdmin("admin@example.com");
+        adminToken = login("admin@example.com", "password123");
+        Order order = orderRepository.saveAndFlush(new Order("buyer@example.com", BigDecimal.valueOf(25), OrderStatus.PROCESSING));
+        order.setPaymentStatus(PaymentStatus.PAID);
+        orderRepository.saveAndFlush(order);
+        orderItemRepository.saveAndFlush(new OrderItem(order.getId(), product.getId(), "Refund Item", BigDecimal.valueOf(25), 1));
+
+        mockMvc.perform(post("/api/orders/%d/refund".formatted(order.getId()))
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REFUNDED"))
+                .andExpect(jsonPath("$.paymentStatus").value("REFUNDED"));
     }
 
     @Test
@@ -257,10 +279,18 @@ class ECommerceApiIntegrationTest extends PostgresIntegrationTest {
                                   "email": "%s",
                                   "password": "%s"
                                 }
-                                """.formatted(email, password)))
+                        """.formatted(email, password)))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Register successful"));
 
+        return login(email, password, "USER");
+    }
+
+    private String login(String email, String password) throws Exception {
+        return login(email, password, null);
+    }
+
+    private String login(String email, String password, String expectedRole) throws Exception {
         String response = mockMvc.perform(post("/api/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -271,13 +301,17 @@ class ECommerceApiIntegrationTest extends PostgresIntegrationTest {
                                 """.formatted(email, password)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email))
-                .andExpect(jsonPath("$.role").value("USER"))
+                .andExpect(expectedRole == null ? result -> { } : jsonPath("$.role").value(expectedRole))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         JsonNode json = objectMapper.readTree(response);
         return json.get("token").asText();
+    }
+
+    private void promoteUserToAdmin(String email) {
+        jdbcTemplate.update("UPDATE users SET role = 'ADMIN' WHERE email = ?", email);
     }
 
     private Long createShippingAddress(String token) throws Exception {
